@@ -30,11 +30,11 @@ importers:
         specifier: ^15.x
         version: 15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4)
       '@multiversx/sdk-dapp':
-        specifier: ^5.x
-        version: 5.6.13(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(@multiversx/sdk-dapp-utils@3.0.2(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(bignumber.js@9.3.1))(@types/react@18.2.23)(axios@1.12.2)(bignumber.js@9.3.1)(protobufjs@7.5.4)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(typescript@5.2.2)(vue@3.5.26(typescript@5.2.2))
+        specifier: ^5.6.14
+        version: 5.6.14(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(@multiversx/sdk-dapp-utils@3.0.2(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(bignumber.js@9.3.1))(@types/react@18.2.23)(axios@1.12.2)(bignumber.js@9.3.1)(protobufjs@7.5.4)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(typescript@5.2.2)(vue@3.5.26(typescript@5.2.2))
       '@multiversx/sdk-dapp-ui':
         specifier: ^0.x
-        version: 0.1.18(@types/react@18.2.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(vue@3.5.26(typescript@5.2.2))
+        version: 0.1.19(@types/react@18.2.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(vue@3.5.26(typescript@5.2.2))
       '@multiversx/sdk-dapp-utils':
         specifier: ^3.x
         version: 3.0.2(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(bignumber.js@9.3.1)
@@ -52,7 +52,7 @@ importers:
         version: 3.5.0
       motion:
         specifier: ^12.23.12
-        version: 12.33.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+        version: 12.34.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       protobufjs:
         specifier: ^7.5.3
         version: 7.5.4
@@ -64,7 +64,7 @@ importers:
         version: 18.2.0(react@18.2.0)
       react-modal-sheet:
         specifier: ^4.4.0
-        version: 4.4.0(motion@12.33.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react@18.2.0)
+        version: 4.4.0(motion@12.34.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react@18.2.0)
       react-router-dom:
         specifier: 6.16.0
         version: 6.16.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -792,8 +792,12 @@ packages:
       bignumber.js: ^9.0.1
       protobufjs: ^7.2.6
 
-  '@multiversx/sdk-dapp-ui@0.1.18':
-    resolution: {integrity: sha512-/gMo5EXu0yBQYJ3edO2s2pVdcWMgNYbvOvfjncfU1nnFfL1dOca/caYt/IdnhajDAREacbh76Ybv36SZR87nsg==}
+  '@multiversx/sdk-dapp-ui@0.1.19':
+    resolution: {integrity: sha512-OZblng6ciYW0+B1CmqZPCajL845jr8KzRk5ahvCJ5ru5bWgt7BtJIX6tgjAbjWF7v8pSvi51t4E38My4TQ257A==}
+    engines: {node: '>=20.19.0'}
+
+  '@multiversx/sdk-dapp-ui@0.1.20':
+    resolution: {integrity: sha512-uiZfe0G46yzQAuZ/CWjBV4Dp1GDGWXhbIMEi/XWJ6u5KCUM1WgaCwInIxQ5WAR8jzqm5Xxmu1chJ0U9jQCPK3g==}
     engines: {node: '>=20.19.0'}
 
   '@multiversx/sdk-dapp-utils@3.0.2':
@@ -802,8 +806,8 @@ packages:
       '@multiversx/sdk-core': ^14.0.0 || ^15.0.0
       bignumber.js: ^9.x
 
-  '@multiversx/sdk-dapp@5.6.13':
-    resolution: {integrity: sha512-spzoUvlaEO7PuBrwTuqeQWc+BIKc/nGmWhbT7kSm4dQmyAaetHgxAtxNUPUpyK2EuruLHTZ/0XAegt7XLPdCYA==}
+  '@multiversx/sdk-dapp@5.6.14':
+    resolution: {integrity: sha512-h4wp2jyc/2wnmIN7zmxRUfARmzA3wgzCtV/Gk534cU6VirO/z9xMx/BrfdFL/B+OLDAccQRzEUg/4scdWaLTPA==}
     peerDependencies:
       '@multiversx/sdk-core': ^14.x || ^15.x
       '@multiversx/sdk-dapp-utils': ^3.x
@@ -3248,8 +3252,8 @@ packages:
   fraction.js@4.3.7:
     resolution: {integrity: sha512-ZsDfxO51wGAXREY55a7la9LScWpwv9RxIrYABrlvOFBlH/ShPnrtsXeuUIfXKKOVicNxQ+o8JTbJvjS4M89yew==}
 
-  framer-motion@12.33.0:
-    resolution: {integrity: sha512-ca8d+rRPcDP5iIF+MoT3WNc0KHJMjIyFAbtVLvM9eA7joGSpeqDfiNH/kCs1t4CHi04njYvWyj0jS4QlEK/rJQ==}
+  framer-motion@12.34.0:
+    resolution: {integrity: sha512-+/H49owhzkzQyxtn7nZeF4kdH++I2FWrESQ184Zbcw5cEqNHYkE5yxWxcTLSj5lNx3NWdbIRy5FHqUvetD8FWg==}
     peerDependencies:
       '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
@@ -4430,14 +4434,14 @@ packages:
     resolution: {integrity: sha512-Ghw8JhQFizF0Vjbtp9B0i//+BOkV5OWcQCPpbO0NGOoxV33o+gKDYU0Pr2pGxkIHnqZ+g5mYiXF7GMNgAcDpSg==}
     hasBin: true
 
-  motion-dom@12.33.0:
-    resolution: {integrity: sha512-XRPebVypsl0UM+7v0Hr8o9UAj0S2djsQWRdHBd5iVouVpMrQqAI0C/rDAT3QaYnXnHuC5hMcwDHCboNeyYjPoQ==}
+  motion-dom@12.34.0:
+    resolution: {integrity: sha512-Lql3NuEcScRDxTAO6GgUsRHBZOWI/3fnMlkMcH5NftzcN37zJta+bpbMAV9px4Nj057TuvRooMK7QrzMCgtz6Q==}
 
   motion-utils@12.29.2:
     resolution: {integrity: sha512-G3kc34H2cX2gI63RqU+cZq+zWRRPSsNIOjpdl9TN4AQwC4sgwYPl/Q/Obf/d53nOm569T0fYK+tcoSV50BWx8A==}
 
-  motion@12.33.0:
-    resolution: {integrity: sha512-TcND7PijsrTeIA9SRVUB8TOJQ+6mJnJ5K4a9oAJZvyI0Zy47Gq5oofU+VkTxbLcvDoKXnHspQcII2mnk3TbFsQ==}
+  motion@12.34.0:
+    resolution: {integrity: sha512-01Sfa/zgsD/di8zA/uFW5Eb7/SPXoGyUfy+uMRMW5Spa8j0z/UbfQewAYvPMYFCXRlyD6e5aLHh76TxeeJD+RA==}
     peerDependencies:
       '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
@@ -6810,7 +6814,7 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  '@multiversx/sdk-dapp-ui@0.1.18(@types/react@18.2.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(vue@3.5.26(typescript@5.2.2))':
+  '@multiversx/sdk-dapp-ui@0.1.19(@types/react@18.2.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(vue@3.5.26(typescript@5.2.2))':
     dependencies:
       '@stencil/core': 4.38.1
       '@stencil/react-output-target': 1.2.0(@stencil/core@4.38.1)(@types/react@18.2.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -6827,12 +6831,30 @@ snapshots:
       - vue
       - vue-router
 
+  '@multiversx/sdk-dapp-ui@0.1.20(@types/react@18.2.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(vue@3.5.26(typescript@5.2.2))':
+    dependencies:
+      '@stencil/core': 4.38.1
+      '@stencil/react-output-target': 1.2.0(@stencil/core@4.38.1)(@types/react@18.2.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@stencil/vue-output-target': 0.11.8(@stencil/core@4.38.1)(vue@3.5.26(typescript@5.2.2))
+      classnames: 2.5.1
+      lodash.capitalize: 4.2.1
+      lodash.inrange: 3.3.6
+      lodash.range: 3.2.0
+      qrcode: 1.5.4
+    transitivePeerDependencies:
+      - '@types/react'
+      - react
+      - react-dom
+      - vue
+      - vue-router
+    optional: true
+
   '@multiversx/sdk-dapp-utils@3.0.2(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(bignumber.js@9.3.1)':
     dependencies:
       '@multiversx/sdk-core': 15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4)
       bignumber.js: 9.3.1
 
-  '@multiversx/sdk-dapp@5.6.13(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(@multiversx/sdk-dapp-utils@3.0.2(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(bignumber.js@9.3.1))(@types/react@18.2.23)(axios@1.12.2)(bignumber.js@9.3.1)(protobufjs@7.5.4)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(typescript@5.2.2)(vue@3.5.26(typescript@5.2.2))':
+  '@multiversx/sdk-dapp@5.6.14(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(@multiversx/sdk-dapp-utils@3.0.2(@multiversx/sdk-core@15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4))(bignumber.js@9.3.1))(@types/react@18.2.23)(axios@1.12.2)(bignumber.js@9.3.1)(protobufjs@7.5.4)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(typescript@5.2.2)(vue@3.5.26(typescript@5.2.2))':
     dependencies:
       '@lifeomic/axios-fetch': 3.0.1
       '@multiversx/sdk-core': 15.3.2(bignumber.js@9.3.1)(protobufjs@7.5.4)
@@ -6858,7 +6880,7 @@ snapshots:
       socket.io-client: 4.7.5
       zustand: 4.4.7(@types/react@18.2.23)(immer@10.1.1)(react@18.2.0)
     optionalDependencies:
-      '@multiversx/sdk-dapp-ui': 0.1.18(@types/react@18.2.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(vue@3.5.26(typescript@5.2.2))
+      '@multiversx/sdk-dapp-ui': 0.1.20(@types/react@18.2.23)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(vue@3.5.26(typescript@5.2.2))
     transitivePeerDependencies:
       - '@azure/app-configuration'
       - '@azure/cosmos'
@@ -10011,9 +10033,9 @@ snapshots:
 
   fraction.js@4.3.7: {}
 
-  framer-motion@12.33.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
+  framer-motion@12.34.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
     dependencies:
-      motion-dom: 12.33.0
+      motion-dom: 12.34.0
       motion-utils: 12.29.2
       tslib: 2.8.1
     optionalDependencies:
@@ -11410,15 +11432,15 @@ snapshots:
       validator: 13.15.26
       yargs: 17.7.2
 
-  motion-dom@12.33.0:
+  motion-dom@12.34.0:
     dependencies:
       motion-utils: 12.29.2
 
   motion-utils@12.29.2: {}
 
-  motion@12.33.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
+  motion@12.34.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
     dependencies:
-      framer-motion: 12.33.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      framer-motion: 12.34.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       tslib: 2.8.1
     optionalDependencies:
       react: 18.2.0
@@ -12004,9 +12026,9 @@ snapshots:
 
   react-is@18.3.1: {}
 
-  react-modal-sheet@4.4.0(motion@12.33.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react@18.2.0):
+  react-modal-sheet@4.4.0(motion@12.34.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react@18.2.0):
     dependencies:
-      motion: 12.33.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      motion: 12.34.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       react: 18.2.0
 
   react-property@2.0.2: {}
