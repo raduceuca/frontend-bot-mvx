@@ -1,17 +1,9 @@
 import {
-  faChevronUp,
-  faFilter,
-  faFingerprint,
-  faPenNib,
-  faRectangleList,
-  faTableTennisPaddleBall
+  faRobot
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import classNames from 'classnames';
 import { useState } from 'react';
-import { ReactComponent as IconBatch } from 'assets/img/batch-tx.svg';
-import { ReactComponent as IconAbi } from 'assets/img/ping-pong-abi.svg';
-import { ReactComponent as IconBackend } from 'assets/img/ping-pong-backend.svg';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
 import { ItemIcon } from './components';
 import styles from './sideMenu.styles';
@@ -19,56 +11,16 @@ import { MenuItemsType, SideMenuPropsType } from './sideMenu.types';
 
 const menuItems: MenuItemsType[] = [
   {
-    title: 'Ping & Pong (Manual)',
-    icon: faTableTennisPaddleBall,
-    id: ItemsIdentifiersEnum.pingPongRaw
-  },
-  {
-    title: 'Ping & Pong (ABI)',
-    icon: IconAbi,
-    id: ItemsIdentifiersEnum.pingPongAbi
-  },
-  {
-    title: 'Ping & Pong (Backend)',
-    icon: IconBackend,
-    id: ItemsIdentifiersEnum.pingPongService
-  },
-  {
-    title: 'Sign message',
-    icon: faPenNib,
-    id: ItemsIdentifiersEnum.signMessage
-  },
-  {
-    title: 'Native auth',
-    icon: faFingerprint,
-    id: ItemsIdentifiersEnum.nativeAuth
-  },
-  {
-    title: 'Batch Transactions',
-    icon: IconBatch,
-    id: ItemsIdentifiersEnum.batchTransactions
-  },
-  {
-    title: 'Transactions (All)',
-    icon: faRectangleList,
-    id: ItemsIdentifiersEnum.transactionsAll
-  },
-  {
-    title: 'Transactions (Ping & Pong)',
-    icon: faFilter,
-    id: ItemsIdentifiersEnum.transactionsPingPong
+    title: 'Create Job',
+    icon: faRobot,
+    id: ItemsIdentifiersEnum.createJob
   }
 ];
 
 export const SideMenu = ({ setIsOpen }: SideMenuPropsType) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeItem, setActiveItem] = useState(
-    ItemsIdentifiersEnum.pingPongRaw
+    ItemsIdentifiersEnum.createJob
   );
-
-  const toggleCollapse = () => {
-    setIsCollapsed((isCollapsed) => !isCollapsed);
-  };
 
   const handleMenuItemClick = (id: ItemsIdentifiersEnum) => {
     setIsOpen(false);
@@ -83,23 +35,7 @@ export const SideMenu = ({ setIsOpen }: SideMenuPropsType) => {
 
   return (
     <div className={styles.sideMenuContainer}>
-      <div className={styles.sideMenuHeader}>
-        <h2 className={styles.sideMenuHeaderTitle}>Library</h2>
-
-        <FontAwesomeIcon
-          icon={faChevronUp}
-          className={classNames(styles.sideMenuHeaderIcon, {
-            [styles.sideMenuHeaderIconRotated]: isCollapsed
-          })}
-          onClick={toggleCollapse}
-        />
-      </div>
-
-      <div
-        className={classNames(styles.sideMenuItems, {
-          [styles.sideMenuItemsHidden]: isCollapsed
-        })}
-      >
+      <div className={styles.sideMenuItems}>
         {menuItems.map((item) => (
           <div
             key={item.id}

@@ -1,7 +1,7 @@
 import classNames from 'classnames';
-import { Fragment, FunctionComponent, MouseEvent, SVGProps } from 'react';
+import { FunctionComponent, MouseEvent, SVGProps } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ReactComponent as ArrowUpRightIcon } from 'assets/icons/arrow-up-right-icon.svg';
+
 import { ReactComponent as HomeDarkThemeIcon } from 'assets/icons/home-dark-theme-icon.svg';
 import { ReactComponent as HomeLightThemeIcon } from 'assets/img/bright-light-icon.svg';
 import { ReactComponent as HomeVibeThemeIcon } from 'assets/img/vibe-mode-icon.svg';
@@ -10,7 +10,7 @@ import {
   ThemeOptionType,
   useHandleThemeManagement
 } from 'hooks/useHandleThemeManagement';
-import { DOCUMENTATION_LINK, RouteNamesEnum } from 'localConstants';
+import { RouteNamesEnum } from 'localConstants';
 import styles from './homeHero.styles';
 
 interface HomeThemeOptionType extends ThemeOptionType {
@@ -43,20 +43,12 @@ const themeExtraProperties: Record<
 export const HomeHero = () => {
   const navigate = useNavigate();
 
-  const { allThemeOptions, activeTheme, handleThemeSwitch } =
-    useHandleThemeManagement();
+  const { activeTheme } = useHandleThemeManagement();
 
   const handleLogIn = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     navigate(RouteNamesEnum.unlock);
   };
-
-  const homeThemeOptions: HomeThemeOptionType[] = allThemeOptions.map(
-    (option) => ({
-      ...option,
-      ...themeExtraProperties[option.identifier]
-    })
-  );
 
   const activeHomeTheme = activeTheme
     ? { ...activeTheme, ...themeExtraProperties[activeTheme.identifier] }
@@ -70,64 +62,21 @@ export const HomeHero = () => {
     <div className={heroContainerClasses}>
       <div className={styles.heroSectionTop}>
         <div className={styles.heroSectionTopContent}>
-          <h1 className={styles.heroTitle}>dApp Template</h1>
+          <h1 className={styles.heroTitle}>MultiversX Bot</h1>
 
           <p className={styles.heroDescription}>
-            The sdk-dapp starter project for any dApp built on the MultiversX
-            blockchain.
+            A powerful MultiversX bot that can help you with many things.
           </p>
         </div>
 
         <div className={styles.heroSectionTopButtons}>
           <Button onClick={handleLogIn}>Connect Wallet</Button>
 
-          <a
-            target='_blank'
-            rel='noreferrer'
-            href={DOCUMENTATION_LINK}
-            className={styles.heroSectionTopDocButton}
-          >
-            <span className={styles.heroSectionTopDocButtonText}>
-              See Documentation
-            </span>
 
-            <ArrowUpRightIcon />
-          </a>
         </div>
       </div>
 
-      {activeHomeTheme && (
-        <div className={styles.heroSectionBottom}>
-          {homeThemeOptions.map((themeOption) => (
-            <div
-              key={themeOption.identifier}
-              onClick={handleThemeSwitch(themeOption.identifier)}
-              className={classNames(styles.heroSectionBottomThemeOptions, {
-                [styles.heroSectionBottomThemeOptionsOpacityFull]:
-                  themeOption.identifier === activeHomeTheme.identifier
-              })}
-            >
-              <div className={styles.heroSectionBottomThemeOption}>
-                <themeOption.icon className={styles.themeOptionIcon} />
-
-                <span className={styles.themeOptionTitle}>
-                  {themeOption.label}
-                </span>
-              </div>
-
-              {themeOption.identifier === activeHomeTheme.identifier && (
-                <Fragment>
-                  <span className={styles.themeOptionActiveDot} />
-
-                  <div className={styles.themeOptionActiveLabel}>
-                    {themeOption.title}
-                  </div>
-                </Fragment>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Hero section bottom removed as there is only one theme */}
     </div>
   );
 };

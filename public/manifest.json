@@ -1,7 +1,7 @@
 {
-  "name": "MultiversX dApp Template",
-  "short_name": "MultiversX dApp",
-  "description": "Easily add or update assets for a Token or NFT Collection on the MultiversX Blockchain",
+  "name": "MultiversX Bot",
+  "short_name": "MVX Bot",
+  "description": "A powerful MultiversX bot that can help you with many things",
   "icons": [
     {
       "src": "apple-touch-icon.png",

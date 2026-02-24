@@ -1,5 +1,3 @@
-import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { PropsWithChildren } from 'react';
 
 import { WithClassnameType } from 'types';
@@ -29,12 +27,7 @@ export const Card = ({
   'data-testid': dataTestId
 }: CardPropsType) => (
   <div id={anchor} className={styles.cardContainer} data-testid={dataTestId}>
-    <h2 className={styles.cardTitle}>
-      {title}
-      <a href={reference} target='_blank' className={styles.cardRef}>
-        <FontAwesomeIcon icon={faInfoCircle} className={styles.cardRefIcon} />
-      </a>
-    </h2>
+    <h2 className={styles.cardTitle}>{title}</h2>
 
     {description && <p className={styles.cardDescription}>{description}</p>}
     {children}

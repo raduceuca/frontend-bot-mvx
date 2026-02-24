@@ -1,4 +1,3 @@
-import { faGithub } from '@fortawesome/free-brands-svg-icons';
 import {
   faBell,
   faPowerOff,
@@ -9,7 +8,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import classNames from 'classnames';
 import { MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GITHUB_REPO_URL } from 'config';
 import {
   ACCOUNTS_ENDPOINT,
   getAccountProvider,
@@ -23,7 +21,6 @@ import {
 import { RouteNamesEnum } from 'localConstants';
 import { Logo } from '../Logo';
 import { Tooltip } from '../Tooltip';
-import { ThemeTooltip } from './components';
 import styles from './header.styles';
 
 interface HeaderBrowseButtonType {
@@ -48,11 +45,6 @@ export const Header = () => {
     navigate(RouteNamesEnum.home);
   };
 
-  const handleGitHubBrowsing = (event: MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    window.open(GITHUB_REPO_URL);
-  };
-
   const handleLogIn = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
     navigate(RouteNamesEnum.unlock);
@@ -64,12 +56,6 @@ export const Header = () => {
   };
 
   const headerBrowseButtons: HeaderBrowseButtonType[] = [
-    {
-      label: 'GitHub',
-      handleClick: handleGitHubBrowsing,
-      icon: faGithub as IconDefinition,
-      isVisible: true
-    },
     {
       label: 'Notifications',
       handleClick: handleNotificationsBrowsing,
@@ -90,7 +76,7 @@ export const Header = () => {
       </div>
 
       <nav className={styles.headerNavigation}>
-        <ThemeTooltip />
+        {/* <ThemeTooltip /> */}
 
         <div className={styles.headerNavigationButtons}>
           {headerBrowseButtons.map((headerBrowseButton) => (

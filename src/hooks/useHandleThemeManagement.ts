@@ -10,14 +10,18 @@ export const useHandleThemeManagement = () => {
   const attributeHandle = 'data-mvx-theme';
 
   const allThemeOptions: ThemeOptionType[] = [
-    { identifier: 'mvx:dark-theme', label: 'TealLab' },
-    { identifier: 'mvx:vibe-theme', label: 'VibeMode' },
-    { identifier: 'mvx:light-theme', label: 'BrightLight' }
+    { identifier: 'mvx:dark-theme', label: 'TealLab' }
   ];
 
   const [rootTheme, setRootTheme] = useState(
-    document.documentElement.getAttribute(attributeHandle)
+    document.documentElement.getAttribute(attributeHandle) || 'mvx:dark-theme'
   );
+
+  useEffect(() => {
+    if (!document.documentElement.getAttribute(attributeHandle)) {
+      document.documentElement.setAttribute(attributeHandle, 'mvx:dark-theme');
+    }
+  }, []);
 
   const activeTheme = allThemeOptions.find(
     (themeOption) => themeOption.identifier === rootTheme

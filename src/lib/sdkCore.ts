@@ -12,6 +12,7 @@ export {
   TokenTransfer,
   Transaction,
   TransactionComputer,
+  TransactionWatcher,
   TransactionsFactoryConfig,
   TransferTransactionsFactory,
   UserSecretKey,

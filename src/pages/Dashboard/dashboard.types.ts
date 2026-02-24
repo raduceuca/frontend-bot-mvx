@@ -6,5 +6,6 @@ export enum ItemsIdentifiersEnum {
   nativeAuth = 'native-auth',
   batchTransactions = 'batch-transactions',
   transactionsAll = 'transactions-all',
-  transactionsPingPong = 'transactions-ping-pong'
+  transactionsPingPong = 'transactions-ping-pong',
+  createJob = 'create-job'
 }

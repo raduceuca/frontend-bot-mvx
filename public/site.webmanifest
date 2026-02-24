@@ -1,6 +1,6 @@
 {
-  "name": "MultiversX dApp Template",
-  "short_name": "MultiversX dApp",
+  "name": "MultiversX Bot",
+  "short_name": "MVX Bot",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
