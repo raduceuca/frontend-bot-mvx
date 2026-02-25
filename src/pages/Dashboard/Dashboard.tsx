@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { environment } from 'config';
+import { EnvironmentsEnum } from 'lib/sdkDapp/sdkDapp.types';
 import { WidgetType } from 'types/widget.types';
 import { DashboardHeader, Widget } from './components';
 import styles from './dashboard.styles';
-import { CreateJob } from './widgets';
+import { CreateJob, Faucet } from './widgets';
 
-const dashboardWidgets: WidgetType[] = [
+const defaultWidgets: WidgetType[] = [
   {
     title: 'Create Job',
     widget: CreateJob,
@@ -14,6 +16,22 @@ const dashboardWidgets: WidgetType[] = [
 ];
 
 export const Dashboard = () => {
+  const activeWidgets = useMemo(() => {
+    const widgets = [...defaultWidgets];
+
+    // Show faucet for Devnet
+    if (environment === EnvironmentsEnum.devnet) {
+      widgets.push({
+        title: 'Devnet Faucet',
+        widget: Faucet,
+        description: 'Request 5 Devnet xEGLD tokens to use the bot',
+        reference: 'https://devnet-wallet.multiversx.com/faucet'
+      });
+    }
+
+    return widgets;
+  }, []);
+
   useEffect(() => {
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
@@ -29,7 +47,7 @@ export const Dashboard = () => {
         <DashboardHeader />
 
         <div className={styles.dashboardWidgets}>
-          {dashboardWidgets.map((element) => (
+          {activeWidgets.map((element: WidgetType) => (
             <Widget key={element.title} {...element} />
           ))}
         </div>

@@ -8,4 +8,5 @@ export const USERS_API_URL = '/users/api/v1/users/';
 export const contractAddress =
   'erd1qqqqqqqqqqqqqpgqtmcuh307t6kky677ernjj9ulk64zq74w9l5qxyhdn7';
 export const environment = EnvironmentsEnum.mainnet;
-export const sampleAuthenticatedDomains = [API_URL];
+export const EXTRAS_API_URL = 'https://extras-api.multiversx.com';
+export const sampleAuthenticatedDomains = [API_URL, EXTRAS_API_URL];
