@@ -5,16 +5,19 @@ import {
   faRedo,
   faRobot,
   faSpinner,
+  faStar,
+  faStarHalfStroke,
   faTimesCircle,
-  faUser
+  faUser,
+  faWallet
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { TASK_SERVICE_API_URL } from 'config';
-import { useCreateJob, useSubmitProof } from 'hooks/transactions';
-import { useGetLoginInfo } from 'lib';
+import { useCreateJob, useSendTokensToBot, useGiveFeedback } from 'hooks/transactions';
+import { useGetAccount, useGetLoginInfo, parseAmount } from 'lib';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
 
 type MessageRole = 'user' | 'agent' | 'system';
@@ -47,6 +50,69 @@ const styles = {
 let msgCounter = 0;
 const uid = () => `msg-${++msgCounter}`;
 
+const PERSISTED_JOB_KEY = 'mx_create_job_persisted';
+const PERSISTED_MESSAGES_MAX = 10;
+
+interface PersistedMessage {
+  role: MessageRole;
+  content: string;
+  isStatus?: boolean;
+  isError?: boolean;
+}
+
+interface PersistedJob {
+  jobId: string;
+  agentNonce: number;
+  messages: PersistedMessage[];
+  hasSentToBotForJob?: boolean;
+}
+
+const loadPersistedJob = (): PersistedJob | null => {
+  try {
+    const raw = sessionStorage.getItem(PERSISTED_JOB_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as PersistedJob;
+    if (typeof data?.jobId !== 'string' || typeof data?.agentNonce !== 'number') return null;
+    const messages = Array.isArray(data.messages) ? data.messages : [];
+    return {
+      jobId: data.jobId,
+      agentNonce: data.agentNonce,
+      messages,
+      hasSentToBotForJob: Boolean(data.hasSentToBotForJob)
+    };
+  } catch {
+    return null;
+  }
+};
+
+const savePersistedJob = (
+  jobId: string,
+  agentNonce: number,
+  messages: ChatMessage[],
+  hasSentToBotForJob: boolean
+) => {
+  try {
+    const last = messages.slice(-PERSISTED_MESSAGES_MAX);
+    const persisted: PersistedJob = {
+      jobId,
+      agentNonce,
+      messages: last.map((m) => ({ role: m.role, content: m.content, isStatus: m.isStatus, isError: m.isError })),
+      hasSentToBotForJob
+    };
+    sessionStorage.setItem(PERSISTED_JOB_KEY, JSON.stringify(persisted));
+  } catch {
+    // ignore
+  }
+};
+
+const clearPersistedJob = () => {
+  try {
+    sessionStorage.removeItem(PERSISTED_JOB_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 const parseAgentResponse = (val: unknown): string => {
   if (typeof val !== 'string') return JSON.stringify(val, null, 2);
   try {
@@ -78,14 +144,60 @@ export const CreateJob = () => {
   const [prompt, setPrompt] = useState('');
   const [isPrompting, setIsPrompting] = useState(false);
 
-  const [isFinishing, setIsFinishing] = useState(false);
+  const [isSendingToBot, setIsSendingToBot] = useState(false);
+  const [isSwapping, setIsSwapping] = useState(false);
+
+  // EGLD amount to send to bot (for swap flow)
+  const [egldAmountToBot, setEgldAmountToBot] = useState('1');
+
+  // Send to bot is allowed only once per job; second click shows agent message
+  const [hasSentToBotForJob, setHasSentToBotForJob] = useState(false);
+
+  // Feedback modal (after Mark as finished)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [pendingFeedback, setPendingFeedback] = useState<{
+    jobId: string;
+    agentNonce: number;
+  } | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState<number>(0); // 0, 10, 20, ..., 100.
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const { address: userAddress } = useGetAccount();
   const { createJob } = useCreateJob();
-  const { submitProof } = useSubmitProof();
+  const { sendTokensToBot } = useSendTokensToBot();
+  const { giveFeedback } = useGiveFeedback();
   const { tokenLogin } = useGetLoginInfo();
+
+  // Restore persisted job on mount (e.g. after refresh)
+  useEffect(() => {
+    const persisted = loadPersistedJob();
+    if (persisted?.jobId) {
+      setJobId(persisted.jobId);
+      setAgentNonce(persisted.agentNonce);
+      setHasSentToBotForJob(persisted.hasSentToBotForJob ?? false);
+      if (persisted.messages?.length) {
+        const restored: ChatMessage[] = persisted.messages.map((m) => ({
+          id: uid(),
+          role: m.role,
+          content: m.content,
+          isStatus: m.isStatus,
+          isError: m.isError
+        }));
+        setMessages(restored);
+      }
+    }
+  }, []);
+
+  // Persist job, last 10 messages, and send-to-bot-once flag when we have an open job
+  useEffect(() => {
+    if (jobId) {
+      savePersistedJob(jobId, agentNonce, messages, hasSentToBotForJob);
+    }
+  }, [jobId, agentNonce, messages, hasSentToBotForJob]);
 
   // Auto-scroll to the latest message
   useEffect(() => {
@@ -124,6 +236,7 @@ export const CreateJob = () => {
       });
 
       setJobId(newJobId);
+      setHasSentToBotForJob(false);
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || '';
       pushMessage({
@@ -239,6 +352,7 @@ export const CreateJob = () => {
   };
 
   const resetAll = () => {
+    clearPersistedJob();
     setJobId(null);
     setVerificationStatus('idle');
     setMessages([]);
@@ -248,18 +362,150 @@ export const CreateJob = () => {
     setToken('EGLD');
     setNonce(0);
     setAmount('0.05');
+    setEgldAmountToBot('1');
+    setHasSentToBotForJob(false);
   };
 
-  const handleFinishJob = async () => {
+  const handleFinishJob = () => {
     if (!jobId) return;
-    setIsFinishing(true);
+    const jobToRate = jobId;
+    const nonceToRate = agentNonce;
+    resetAll();
+    setPendingFeedback({ jobId: jobToRate, agentNonce: nonceToRate });
+    setFeedbackRating(0);
+    setFeedbackError(null);
+    setShowFeedbackModal(true);
+  };
+
+  const handleCloseFeedbackModal = () => {
+    setShowFeedbackModal(false);
+    setPendingFeedback(null);
+    setFeedbackRating(0);
+    setFeedbackError(null);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!pendingFeedback || feedbackRating <= 0) return;
+    setIsSubmittingFeedback(true);
+    setFeedbackError(null);
     try {
-      await submitProof(jobId);
-      resetAll();
-    } catch (err) {
-      console.error('Finish job failed', err);
+      await giveFeedback(pendingFeedback.jobId, pendingFeedback.agentNonce, feedbackRating);
+      handleCloseFeedbackModal();
+    } catch (err: any) {
+      setFeedbackError(err?.message || err?.response?.data?.message || 'Failed to submit feedback');
     } finally {
-      setIsFinishing(false);
+      setIsSubmittingFeedback(false);
+    }
+  };
+
+  const triggerSwapAndReturn = async () => {
+    if (!jobId || !userAddress) return;
+    const amountAtoms = parseAmount(egldAmountToBot);
+    const swapPrompt = `The user at address ${userAddress} just sent ${amountAtoms} atoms of EGLD to the bot. Use the mx-swap-and-return skill:
+
+1. Save this amount: user address = ${userAddress}, received token = EGLD, amount = ${amountAtoms} atoms.
+2. Call the DEX metadata API (GET the same API base URL as this task service + /dex/metadata, e.g. https://mx-bot-api.elrond.ro/dex/metadata) to get the list of available tradeable tokens.
+3. From the response, pick between 1 and 4 output tokens with reasoning (e.g. liquidity, diversity; exclude the input token). State briefly why you chose each.
+4. Run run_swap_and_return.py with: --user-address ${userAddress} --received-token EGLD --amount ${amountAtoms} --output-tokens <your selected tokens comma-separated>. Use default bot PEM.
+5. The user at ${userAddress} must receive the swapped tokens.
+6. In your final report you MUST include: (a) your reasoning for choosing each output token (why you picked them), and (b) a clear line telling the user to check their wallet for their newly swapped tokens. Report which tokens and amounts were sent.`;
+    try {
+      const { data: initData } = await axios.post(
+        `${TASK_SERVICE_API_URL}/start-task-cli`,
+        { jobId, prompt: swapPrompt },
+        {
+          headers: {
+            Authorization: `Bearer ${tokenLogin?.nativeAuthToken}`
+          }
+        }
+      );
+      const taskId = initData.taskId;
+      let completed = false;
+      let attempts = 0;
+      const pollIntervalMs = 5000;
+      const maxAttempts = 60; // ~5 min at 5s
+      while (!completed && attempts < maxAttempts) {
+        attempts++;
+        const { data: task } = await axios.get(
+          `${TASK_SERVICE_API_URL}/tasks/${taskId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${tokenLogin?.nativeAuthToken}`
+            }
+          }
+        );
+        if (task.status === 'completed') {
+          setMessages((prev) =>
+            prev[prev.length - 1]?.isStatus ? prev.slice(0, -1) : prev
+          );
+          pushMessage({
+            role: 'agent',
+            content: parseAgentResponse(task.result)
+          });
+          completed = true;
+        } else if (task.status === 'failed') {
+          replaceLastSystemStatus(
+            `Swap failed: ${task.error || 'Unknown error'}`,
+            true
+          );
+          completed = true;
+        } else {
+          replaceLastSystemStatus(
+            `Bot is swapping your tokens… (${attempts})`
+          );
+        }
+        if (!completed) {
+          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+        }
+      }
+      if (!completed) {
+        replaceLastSystemStatus('Swap timed out.', true);
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || '';
+      replaceLastSystemStatus(`Swap task failed: ${errorMsg}`, true);
+    } finally {
+      setIsSwapping(false);
+    }
+  };
+
+  const handleSendTokensToBot = async () => {
+    if (hasSentToBotForJob) {
+      pushMessage({
+        role: 'agent',
+        content: 'You need to initialize a new job if you want me to trade for you again.'
+      });
+      return;
+    }
+
+    setIsSendingToBot(true);
+    try {
+      await sendTokensToBot({
+        token: 'EGLD',
+        nonce: 0,
+        amount: egldAmountToBot
+      });
+      pushMessage({
+        role: 'system',
+        content: `${egldAmountToBot} EGLD sent to bot. Check your wallet for the transaction.`
+      });
+      pushMessage({
+        role: 'system',
+        content: 'Bot is swapping your tokens…',
+        isStatus: true
+      });
+      setIsSwapping(true);
+      await triggerSwapAndReturn();
+      setHasSentToBotForJob(true);
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || '';
+      pushMessage({
+        role: 'system',
+        content: `Send to bot failed: ${errorMsg}`,
+        isError: true
+      });
+    } finally {
+      setIsSendingToBot(false);
     }
   };
 
@@ -283,47 +529,68 @@ export const CreateJob = () => {
             </div>
           </div>
 
-          <div className='flex items-center gap-3'>
+          <div className='flex items-center gap-3 flex-wrap'>
             {jobId && (
-              <button
-                disabled={isFinishing || isCreating || isPrompting}
-                onClick={handleFinishJob}
-                className={`${styles.actionButton} bg-emerald-600 hover:bg-emerald-500 min-w-[200px] h-[52px] ring-2 ring-emerald-500/40 ring-offset-2 ring-offset-black/80`}
-              >
-                {isFinishing ? (
+              <>
+                <div className='flex items-center gap-2 flex-wrap'>
+                  <span className='text-[10px] font-black text-white/40 uppercase tracking-widest'>
+                    EGLD amount to send to bot:
+                  </span>
+                  <input
+                    type='text'
+                    value={egldAmountToBot}
+                    onChange={(e) => setEgldAmountToBot(e.target.value)}
+                    placeholder='Amount'
+                    className='bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-sm w-24 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30'
+                  />
+                </div>
+                <button
+                  disabled={isCreating || isPrompting || isSendingToBot || isSwapping}
+                  onClick={handleSendTokensToBot}
+                  className={`${styles.actionButton} bg-violet-600 hover:bg-violet-500 min-w-[180px] h-[52px] ring-2 ring-violet-500/40 ring-offset-2 ring-offset-black/80`}
+                >
+                  {isSendingToBot ? (
+                    <div className='flex items-center justify-center gap-2'>
+                      <FontAwesomeIcon icon={faSpinner} spin /> SENDING...
+                    </div>
+                  ) : isSwapping ? (
+                    <div className='flex items-center justify-center gap-2'>
+                      <FontAwesomeIcon icon={faSpinner} spin /> SWAPPING...
+                    </div>
+                  ) : (
+                    <div className='flex items-center justify-center gap-2'>
+                      <FontAwesomeIcon icon={faWallet} /> SEND TO BOT
+                    </div>
+                  )}
+                </button>
+                <button
+                  disabled={isCreating || isPrompting}
+                  onClick={handleFinishJob}
+                  className={`${styles.actionButton} bg-emerald-600 hover:bg-emerald-500 min-w-[200px] h-[52px] ring-2 ring-emerald-500/40 ring-offset-2 ring-offset-black/80`}
+                >
                   <div className='flex items-center justify-center gap-2'>
-                    <FontAwesomeIcon icon={faSpinner} spin /> FINISHING...
+                    <FontAwesomeIcon icon={faCheckCircle} /> MARK AS FINISHED
+                  </div>
+                </button>
+              </>
+            )}
+            {!jobId && (
+              <button
+                disabled={isCreating}
+                onClick={handleCreateJob}
+                className={`${styles.actionButton} min-w-[200px] h-[52px] ring-2 ring-interactive/40 ring-offset-2 ring-offset-black/80`}
+              >
+                {isCreating ? (
+                  <div className='flex items-center justify-center gap-2'>
+                    <FontAwesomeIcon icon={faSpinner} spin /> INITIALIZING
                   </div>
                 ) : (
                   <div className='flex items-center justify-center gap-2'>
-                    <FontAwesomeIcon icon={faCheckCircle} /> MARK AS FINISHED
+                    <FontAwesomeIcon icon={faBolt} /> INITIALIZE JOB
                   </div>
                 )}
               </button>
             )}
-            <button
-              disabled={isCreating || isFinishing}
-              onClick={jobId ? resetAll : handleCreateJob}
-              className={`${styles.actionButton} min-w-[200px] h-[52px] ${
-                jobId
-                  ? 'ring-2 ring-rose-500/40 ring-offset-2 ring-offset-black/80'
-                  : 'ring-2 ring-interactive/40 ring-offset-2 ring-offset-black/80'
-              }`}
-            >
-              {isCreating ? (
-                <div className='flex items-center justify-center gap-2'>
-                  <FontAwesomeIcon icon={faSpinner} spin /> INITIALIZING
-                </div>
-              ) : jobId ? (
-                <div className='flex items-center justify-center gap-2'>
-                  <FontAwesomeIcon icon={faRedo} /> RESET JOB
-                </div>
-              ) : (
-                <div className='flex items-center justify-center gap-2'>
-                  <FontAwesomeIcon icon={faBolt} /> INITIALIZE JOB
-                </div>
-              )}
-            </button>
           </div>
         </div>
 
@@ -604,6 +871,87 @@ export const CreateJob = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Feedback modal: rate 1–5 stars (half stars allowed), then submit to reputation registry */}
+      {showFeedbackModal && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm'>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`${styles.glassCard} max-w-md w-full p-8 flex flex-col gap-6`}
+          >
+            <h3 className='text-lg font-black text-white uppercase tracking-tight'>
+              Rate the bot
+            </h3>
+            <p className='text-white/60 text-sm'>
+              How was your experience? Each star = 20 (half stars allowed). Your rating is sent on-chain to the reputation registry.
+            </p>
+            <div className='flex items-center gap-0.5'>
+              {[0, 1, 2, 3, 4].map((starIndex) => {
+                const halfValue = starIndex * 20 + 10;
+                const fullValue = (starIndex + 1) * 20;
+                const showFull = feedbackRating >= fullValue;
+                const showHalf = feedbackRating >= halfValue && !showFull;
+                const filled = showFull || showHalf;
+                return (
+                  <div key={starIndex} className='relative flex w-10'>
+                    <span className={`pointer-events-none text-2xl transition-colors ${filled ? 'text-amber-400' : 'text-white/20'}`}>
+                      {showFull ? (
+                        <FontAwesomeIcon icon={faStar} />
+                      ) : showHalf ? (
+                        <FontAwesomeIcon icon={faStarHalfStroke} />
+                      ) : (
+                        <FontAwesomeIcon icon={faStar} />
+                      )}
+                    </span>
+                    <button
+                      type='button'
+                      onClick={() => setFeedbackRating(halfValue)}
+                      className='absolute left-0 top-0 w-1/2 h-full cursor-pointer'
+                      aria-label={`${starIndex + 0.5} stars`}
+                    />
+                    <button
+                      type='button'
+                      onClick={() => setFeedbackRating(fullValue)}
+                      className='absolute left-1/2 top-0 w-1/2 h-full cursor-pointer'
+                      aria-label={`${starIndex + 1} stars`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <p className='text-white/50 text-xs font-mono'>
+              {feedbackRating > 0 ? `${feedbackRating / 20} star(s) (rating: ${feedbackRating})` : 'Tap stars to rate (each star = 20)'}
+            </p>
+            {feedbackError && (
+              <p className='text-red-400 text-sm'>{feedbackError}</p>
+            )}
+            <div className='flex gap-3'>
+              <button
+                type='button'
+                onClick={handleCloseFeedbackModal}
+                className='flex-1 px-4 py-3 rounded-xl border border-white/20 text-white/80 hover:bg-white/10 transition-colors text-sm font-bold'
+              >
+                Skip
+              </button>
+              <button
+                type='button'
+                disabled={feedbackRating <= 0 || isSubmittingFeedback}
+                onClick={handleSubmitFeedback}
+                className={`flex-1 ${styles.actionButton} bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 flex items-center justify-center gap-2`}
+              >
+                {isSubmittingFeedback ? (
+                  <>
+                    <FontAwesomeIcon icon={faSpinner} spin /> Submitting…
+                  </>
+                ) : (
+                  <>Submit feedback</>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
