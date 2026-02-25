@@ -1,16 +1,16 @@
 import { Outlet } from 'react-router-dom';
-import { HomeConnect } from './components/HomeConnect';
+import { HomeCapabilities } from './components/HomeCapabilities';
 import { HomeHero } from './components/HomeHero';
 
-// prettier-ignore
 const styles = {
-  homeContainer: 'home-container flex flex-col items-center justify-center gap-10 bg-transparent px-2 pb-10 max-w-320 w-screen rounded-3xl overflow-hidden'
+  container:
+    'flex flex-col items-center w-full max-w-3xl mx-auto px-4 pb-16 gap-12 lg:gap-16'
 } satisfies Record<string, string>;
 
 export const Home = () => (
-  <div className={styles.homeContainer}>
+  <div className={styles.container}>
     <HomeHero />
-    <HomeConnect />
+    <HomeCapabilities />
     <Outlet />
   </div>
 );

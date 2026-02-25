@@ -12,6 +12,6 @@ export default {
   leftPanelMobileAddressIcon: 'left-panel-mobile-address-icon text-accent transition-all duration-200 ease-out',
   leftPanelMobileAddressWithExplorerLink: 'left-panel-mobile-address-with-explorer-link max-w-[90%]',
   logoutButton: 'text-center text-link hover:text-primary transition-all duration-200 ease-out cursor-pointer',
-  leftPanelComponents: 'flex flex-col gap-4 bg-accent p-6 lg:p-0 rounded-2xl transition-all duration-200 ease-out',
+  leftPanelComponents: 'flex flex-col gap-4 bg-accent p-6 lg:p-0 rounded-lg transition-all duration-200 ease-out',
   leftPanelBar: 'w-full h-0.25 bg-neutral-700 opacity-40 transition-all duration-200 ease-out'
 } satisfies Record<string, string>;

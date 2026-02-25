@@ -1,14 +1,11 @@
 import { PropsWithChildren } from 'react';
-
 import { WithClassnameType } from 'types';
 
 // prettier-ignore
 const styles = {
-  cardContainer: 'card-container flex flex-col gap-4 flex-1 rounded-xl bg-primary transition-all duration-200 ease-out p-6 lg:p-10 justify-center border border-secondary',
-  cardTitle: 'card-title flex justify-between items-center text-2xl font-medium group text-primary transition-all duration-200 ease-out',
-  cardRef: 'card-ref text-link hover:text-primary transition-all duration-200 ease-out flex items-center',
-  cardRefIcon: 'card-ref-icon max-w-3.5 max-h-3.5',
-  cardDescription: 'card-description text-secondary transition-all duration-200 ease-out mb-6 text-lg font-medium'
+  container: 'bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col gap-4 flex-1 p-4 lg:p-6 justify-center transition-colors duration-100',
+  title: 'flex justify-between items-center text-lg font-semibold text-zinc-50 tracking-tight',
+  description: 'text-zinc-400 mb-4 text-base'
 } satisfies Record<string, string>;
 
 interface CardPropsType extends PropsWithChildren, WithClassnameType {
@@ -22,14 +19,12 @@ export const Card = ({
   title,
   children,
   description,
-  reference,
   anchor,
   'data-testid': dataTestId
 }: CardPropsType) => (
-  <div id={anchor} className={styles.cardContainer} data-testid={dataTestId}>
-    <h2 className={styles.cardTitle}>{title}</h2>
-
-    {description && <p className={styles.cardDescription}>{description}</p>}
+  <div id={anchor} className={styles.container} data-testid={dataTestId}>
+    <h2 className={styles.title}>{title}</h2>
+    {description && <p className={styles.description}>{description}</p>}
     {children}
   </div>
 );

@@ -35,12 +35,8 @@ export interface PingTransactionPayloadType {
 
 interface PingPongComponentPropsType {
   identifier: `${ItemsIdentifiersEnum}`;
-  sendPingTransaction: (
-    payload: PingTransactionPayloadType
-  ) => Promise<string | undefined>;
-  sendPongTransaction: (
-    transactions?: Transaction[]
-  ) => Promise<string | undefined>;
+  sendPingTransaction: (payload: PingTransactionPayloadType) => Promise<any>;
+  sendPongTransaction: (transactions?: Transaction[]) => Promise<any>;
   getTimeToPong: () => Promise<number | null | undefined>;
   pingAmount?: string;
   getPingTransaction?: () => Promise<Transaction | null>;
@@ -87,8 +83,10 @@ export const PingPongComponent = ({
 
   const onSendPingTransaction = async () => {
     if (pingAmount) {
-      const sessionId = await sendPingTransaction({ amount: pingAmount });
-      setCurrentSessionId(sessionId);
+      const response = await sendPingTransaction({ amount: pingAmount });
+      setCurrentSessionId(
+        typeof response === 'string' ? response : response?.sessionId
+      );
       return;
     }
 
@@ -102,16 +100,20 @@ export const PingPongComponent = ({
       return;
     }
 
-    const sessionId = await sendPingTransaction({
+    const response = await sendPingTransaction({
       transactions: [pingTransaction]
     });
-    setCurrentSessionId(sessionId);
+    setCurrentSessionId(
+      typeof response === 'string' ? response : response?.sessionId
+    );
   };
 
   const onSendPongTransaction = async () => {
     if (pingAmount) {
-      const sessionId = await sendPongTransaction();
-      setCurrentSessionId(sessionId);
+      const response = await sendPongTransaction();
+      setCurrentSessionId(
+        typeof response === 'string' ? response : response?.sessionId
+      );
       return;
     }
 
@@ -125,8 +127,10 @@ export const PingPongComponent = ({
       return;
     }
 
-    const sessionId = await sendPongTransaction([pongTransaction]);
-    setCurrentSessionId(sessionId);
+    const response = await sendPongTransaction([pongTransaction]);
+    setCurrentSessionId(
+      typeof response === 'string' ? response : response?.sessionId
+    );
   };
 
   const timeRemaining = Duration.fromObject({

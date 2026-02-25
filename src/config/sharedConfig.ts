@@ -35,14 +35,17 @@ export const TASK_SERVICE_API_URL = 'https://mx-bot-api.elrond.ro';
 export const BOT_ADDRESS =
   typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BOT_ADDRESS
     ? process.env.NEXT_PUBLIC_BOT_ADDRESS
-    : typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BOT_ADDRESS
-      ? (import.meta as any).env.VITE_BOT_ADDRESS
-      : 'erd1uyn7ss9syxz2ek97ejuwf2rpxuvk7dkmq2l7t070fm2js3mzj5mstqtg66';
+    : typeof import.meta !== 'undefined' &&
+      (import.meta as any).env?.VITE_BOT_ADDRESS
+    ? (import.meta as any).env.VITE_BOT_ADDRESS
+    : 'erd1uyn7ss9syxz2ek97ejuwf2rpxuvk7dkmq2l7t070fm2js3mzj5mstqtg66';
 
 /** Reputation registry SC for giveFeedbackSimple. Override via NEXT_PUBLIC_REPUTATION_REGISTRY_ADDRESS or VITE_REPUTATION_REGISTRY_ADDRESS. */
 export const REPUTATION_REGISTRY_ADDRESS =
-  typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_REPUTATION_REGISTRY_ADDRESS
+  typeof process !== 'undefined' &&
+  process.env?.NEXT_PUBLIC_REPUTATION_REGISTRY_ADDRESS
     ? process.env.NEXT_PUBLIC_REPUTATION_REGISTRY_ADDRESS
-    : typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_REPUTATION_REGISTRY_ADDRESS
-      ? (import.meta as any).env.VITE_REPUTATION_REGISTRY_ADDRESS
-      : 'erd1qqqqqqqqqqqqqpgq5x2d2fnz5rt42k3ht8sq2el6992s4nv3d8ssqpg6de';
+    : typeof import.meta !== 'undefined' &&
+      (import.meta as any).env?.VITE_REPUTATION_REGISTRY_ADDRESS
+    ? (import.meta as any).env.VITE_REPUTATION_REGISTRY_ADDRESS
+    : 'erd1qqqqqqqqqqqqqpgq5x2d2fnz5rt42k3ht8sq2el6992s4nv3d8ssqpg6de';

@@ -1,14 +1,17 @@
 import {
   faBolt,
   faCheckCircle,
+  faChevronDown,
+  faChevronUp,
+  faComments,
+  faLeaf,
   faPaperPlane,
-  faRedo,
   faRobot,
   faSpinner,
   faStar,
   faStarHalfStroke,
+  faChartLine,
   faTimesCircle,
-  faUser,
   faWallet
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -16,8 +19,12 @@ import axios from 'axios';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { TASK_SERVICE_API_URL } from 'config';
-import { useCreateJob, useSendTokensToBot, useGiveFeedback } from 'hooks/transactions';
-import { useGetAccount, useGetLoginInfo, parseAmount } from 'lib';
+import {
+  useCreateJob,
+  useGiveFeedback,
+  useSendTokensToBot
+} from 'hooks/transactions';
+import { parseAmount, useGetAccount, useGetLoginInfo } from 'lib';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
 
 type MessageRole = 'user' | 'agent' | 'system';
@@ -26,25 +33,16 @@ interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
-  /** For system/status messages like 'verifying…' */
   isStatus?: boolean;
   isError?: boolean;
 }
 
 const styles = {
-  container:
-    'create-job-container flex flex-col gap-6 w-full mx-auto p-4 lg:p-0 flex-1',
-  glassCard:
-    'bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_40px_-15px_rgba(0,0,0,0.5)]',
-  header:
-    'px-8 py-6 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/5',
-  statsGrid: 'grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 p-6',
-  statItem:
-    'bg-white/5 border border-white/5 p-4 rounded-2xl flex flex-col gap-1 hover:bg-white/10 transition-colors',
-  actionButton:
-    'relative overflow-hidden group px-8 py-4 bg-interactive hover:bg-interactive/90 text-white rounded-xl font-bold shadow-lg shadow-interactive/20 disabled:opacity-50 transition-all active:scale-95',
-  badge:
-    'flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase font-black tracking-widest'
+  container: 'create-job-container flex flex-col gap-4 w-full mx-auto flex-1',
+  glassCard: 'bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden',
+  header: 'px-5 py-4 border-b border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-3',
+  actionButton: 'px-4 py-2.5 rounded-md font-medium text-base transition-colors duration-100 disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20',
+  badge: 'flex items-center gap-1.5 px-2 py-0.5 rounded text-base font-mono'
 } satisfies Record<string, string>;
 
 let msgCounter = 0;
@@ -72,7 +70,8 @@ const loadPersistedJob = (): PersistedJob | null => {
     const raw = sessionStorage.getItem(PERSISTED_JOB_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as PersistedJob;
-    if (typeof data?.jobId !== 'string' || typeof data?.agentNonce !== 'number') return null;
+    if (typeof data?.jobId !== 'string' || typeof data?.agentNonce !== 'number')
+      return null;
     const messages = Array.isArray(data.messages) ? data.messages : [];
     return {
       jobId: data.jobId,
@@ -96,7 +95,12 @@ const savePersistedJob = (
     const persisted: PersistedJob = {
       jobId,
       agentNonce,
-      messages: last.map((m) => ({ role: m.role, content: m.content, isStatus: m.isStatus, isError: m.isError })),
+      messages: last.map((m) => ({
+        role: m.role,
+        content: m.content,
+        isStatus: m.isStatus,
+        isError: m.isError
+      })),
       hasSentToBotForJob
     };
     sessionStorage.setItem(PERSISTED_JOB_KEY, JSON.stringify(persisted));
@@ -125,41 +129,34 @@ const parseAgentResponse = (val: unknown): string => {
 };
 
 export const CreateJob = () => {
-  // Config state
   const [agentNonce, setAgentNonce] = useState(110);
   const [serviceId, setServiceId] = useState('1');
   const [token, setToken] = useState('EGLD');
   const [nonce, setNonce] = useState(0);
   const [amount, setAmount] = useState('0.05');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Operational state
   const [jobId, setJobId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<
     'idle' | 'verifying' | 'processing' | 'verified' | 'failed'
   >('idle');
 
-  // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [prompt, setPrompt] = useState('');
   const [isPrompting, setIsPrompting] = useState(false);
 
   const [isSendingToBot, setIsSendingToBot] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
-
-  // EGLD amount to send to bot (for swap flow)
   const [egldAmountToBot, setEgldAmountToBot] = useState('1');
-
-  // Send to bot is allowed only once per job; second click shows agent message
   const [hasSentToBotForJob, setHasSentToBotForJob] = useState(false);
 
-  // Feedback modal (after Mark as finished)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [pendingFeedback, setPendingFeedback] = useState<{
     jobId: string;
     agentNonce: number;
   } | null>(null);
-  const [feedbackRating, setFeedbackRating] = useState<number>(0); // 0, 10, 20, ..., 100.
+  const [feedbackRating, setFeedbackRating] = useState<number>(0);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
@@ -172,7 +169,6 @@ export const CreateJob = () => {
   const { giveFeedback } = useGiveFeedback();
   const { tokenLogin } = useGetLoginInfo();
 
-  // Restore persisted job on mount (e.g. after refresh)
   useEffect(() => {
     const persisted = loadPersistedJob();
     if (persisted?.jobId) {
@@ -192,14 +188,12 @@ export const CreateJob = () => {
     }
   }, []);
 
-  // Persist job, last 10 messages, and send-to-bot-once flag when we have an open job
   useEffect(() => {
     if (jobId) {
       savePersistedJob(jobId, agentNonce, messages, hasSentToBotForJob);
     }
   }, [jobId, agentNonce, messages, hasSentToBotForJob]);
 
-  // Auto-scroll to the latest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isPrompting]);
@@ -241,7 +235,7 @@ export const CreateJob = () => {
       const errorMsg = err.response?.data?.message || err.message || '';
       pushMessage({
         role: 'system',
-        content: `Job creation failed: ${errorMsg}`,
+        content: `Couldn't start the job: ${errorMsg}`,
         isError: true
       });
     } finally {
@@ -263,11 +257,10 @@ export const CreateJob = () => {
       setVerificationStatus('idle');
       pushMessage({
         role: 'system',
-        content: 'Submitting task…',
+        content: 'Sending your request to the agent\u2026',
         isStatus: true
       });
 
-      // 1. Submit Task
       const { data: initData } = await axios.post(
         `${TASK_SERVICE_API_URL}/start-task-cli`,
         { jobId, prompt: userText },
@@ -279,11 +272,9 @@ export const CreateJob = () => {
       );
 
       const taskId = initData.taskId;
-
-      // 2. Poll for Result
       let completed = false;
       let attempts = 0;
-      const maxAttempts = 60; // 5 minutes with 5 s delay
+      const maxAttempts = 60;
 
       while (!completed && attempts < maxAttempts) {
         attempts++;
@@ -299,14 +290,13 @@ export const CreateJob = () => {
         if (task.status === 'verifying') {
           setVerificationStatus('verifying');
           replaceLastSystemStatus(
-            `Verifying employer on-chain… (attempt ${attempts})`
+            `Confirming payment on-chain\u2026 (attempt ${attempts})`
           );
         } else if (task.status === 'processing') {
           setVerificationStatus('processing');
-          replaceLastSystemStatus('Agent is processing your request…');
+          replaceLastSystemStatus('Agent is working\u2026');
         } else if (task.status === 'completed') {
           setVerificationStatus('verified');
-          // Remove the status bubble and add the real agent reply
           setMessages((prev) =>
             prev[prev.length - 1]?.isStatus ? prev.slice(0, -1) : prev
           );
@@ -318,7 +308,7 @@ export const CreateJob = () => {
         } else if (task.status === 'failed') {
           setVerificationStatus('failed');
           replaceLastSystemStatus(
-            `Execution failed: ${task.error || 'Unknown error'}`,
+            `Something went wrong: ${task.error || 'Unknown error'}`,
             true
           );
           completed = true;
@@ -332,13 +322,13 @@ export const CreateJob = () => {
       if (!completed) {
         setVerificationStatus('failed');
         replaceLastSystemStatus(
-          'Execution timed out — the task took too long.',
+          'The agent took too long to respond. Try again?',
           true
         );
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || '';
-      replaceLastSystemStatus(`Communication failure: ${errorMsg}`, true);
+      replaceLastSystemStatus(`Connection lost: ${errorMsg}`, true);
     } finally {
       setIsPrompting(false);
     }
@@ -389,10 +379,18 @@ export const CreateJob = () => {
     setIsSubmittingFeedback(true);
     setFeedbackError(null);
     try {
-      await giveFeedback(pendingFeedback.jobId, pendingFeedback.agentNonce, feedbackRating);
+      await giveFeedback(
+        pendingFeedback.jobId,
+        pendingFeedback.agentNonce,
+        feedbackRating
+      );
       handleCloseFeedbackModal();
     } catch (err: any) {
-      setFeedbackError(err?.message || err?.response?.data?.message || 'Failed to submit feedback');
+      setFeedbackError(
+        err?.message ||
+          err?.response?.data?.message ||
+          "Couldn't submit your rating. Try again?"
+      );
     } finally {
       setIsSubmittingFeedback(false);
     }
@@ -423,7 +421,7 @@ export const CreateJob = () => {
       let completed = false;
       let attempts = 0;
       const pollIntervalMs = 5000;
-      const maxAttempts = 60; // ~5 min at 5s
+      const maxAttempts = 60;
       while (!completed && attempts < maxAttempts) {
         attempts++;
         const { data: task } = await axios.get(
@@ -445,25 +443,23 @@ export const CreateJob = () => {
           completed = true;
         } else if (task.status === 'failed') {
           replaceLastSystemStatus(
-            `Swap failed: ${task.error || 'Unknown error'}`,
+            `Swap didn't go through: ${task.error || 'Unknown error'}`,
             true
           );
           completed = true;
         } else {
-          replaceLastSystemStatus(
-            `Bot is swapping your tokens… (${attempts})`
-          );
+          replaceLastSystemStatus(`Agent is swapping your tokens\u2026 (${attempts})`);
         }
         if (!completed) {
           await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
         }
       }
       if (!completed) {
-        replaceLastSystemStatus('Swap timed out.', true);
+        replaceLastSystemStatus('The swap took too long. Try again?', true);
       }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || '';
-      replaceLastSystemStatus(`Swap task failed: ${errorMsg}`, true);
+      replaceLastSystemStatus(`Swap didn't go through: ${errorMsg}`, true);
     } finally {
       setIsSwapping(false);
     }
@@ -473,7 +469,8 @@ export const CreateJob = () => {
     if (hasSentToBotForJob) {
       pushMessage({
         role: 'agent',
-        content: 'You need to initialize a new job if you want me to trade for you again.'
+        content:
+          'You need to start a new job if you want me to trade for you again.'
       });
       return;
     }
@@ -491,7 +488,7 @@ export const CreateJob = () => {
       });
       pushMessage({
         role: 'system',
-        content: 'Bot is swapping your tokens…',
+        content: 'Agent is swapping your tokens\u2026',
         isStatus: true
       });
       setIsSwapping(true);
@@ -501,7 +498,7 @@ export const CreateJob = () => {
       const errorMsg = err.response?.data?.message || err.message || '';
       pushMessage({
         role: 'system',
-        content: `Send to bot failed: ${errorMsg}`,
+        content: `Couldn't send tokens to the bot: ${errorMsg}`,
         isError: true
       });
     } finally {
@@ -513,49 +510,48 @@ export const CreateJob = () => {
     <div id={ItemsIdentifiersEnum.createJob} className={styles.container}>
       {/* Configuration Header */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15 }}
         className={styles.glassCard}
       >
         <div className={styles.header}>
-          <div className='flex items-center gap-4'>
-            <div>
-              <h2 className='text-xl font-black text-white tracking-tight uppercase'>
-                Agent Orchestrator
-              </h2>
-              <p className='text-white/40 text-xs font-mono uppercase tracking-widest'>
-                Core Configuration Matrix
-              </p>
-            </div>
+          <div>
+            <h2 className='text-lg font-semibold text-zinc-50 tracking-tight'>
+              MultiversX Bot
+            </h2>
+            <p className='text-base text-zinc-500'>Launch a new job</p>
           </div>
 
           <div className='flex items-center gap-3 flex-wrap'>
             {jobId && (
               <>
                 <div className='flex items-center gap-2 flex-wrap'>
-                  <span className='text-[10px] font-black text-white/40 uppercase tracking-widest'>
-                    EGLD amount to send to bot:
+                  <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
+                    EGLD:
                   </span>
                   <input
                     type='text'
                     value={egldAmountToBot}
                     onChange={(e) => setEgldAmountToBot(e.target.value)}
                     placeholder='Amount'
-                    className='bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-sm w-24 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30'
+                    className='bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-zinc-50 font-mono text-base w-24 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors duration-100'
                   />
                 </div>
                 <button
-                  disabled={isCreating || isPrompting || isSendingToBot || isSwapping}
+                  disabled={
+                    isCreating || isPrompting || isSendingToBot || isSwapping
+                  }
                   onClick={handleSendTokensToBot}
-                  className={`${styles.actionButton} bg-violet-600 hover:bg-violet-500 min-w-[180px] h-[52px] ring-2 ring-violet-500/40 ring-offset-2 ring-offset-black/80`}
+                  className={`${styles.actionButton} bg-violet-600 hover:bg-violet-500 text-white min-w-[160px]`}
                 >
                   {isSendingToBot ? (
                     <div className='flex items-center justify-center gap-2'>
-                      <FontAwesomeIcon icon={faSpinner} spin /> SENDING...
+                      <FontAwesomeIcon icon={faSpinner} spin /> SENDING\u2026
                     </div>
                   ) : isSwapping ? (
                     <div className='flex items-center justify-center gap-2'>
-                      <FontAwesomeIcon icon={faSpinner} spin /> SWAPPING...
+                      <FontAwesomeIcon icon={faSpinner} spin /> SWAPPING\u2026
                     </div>
                   ) : (
                     <div className='flex items-center justify-center gap-2'>
@@ -566,10 +562,10 @@ export const CreateJob = () => {
                 <button
                   disabled={isCreating || isPrompting}
                   onClick={handleFinishJob}
-                  className={`${styles.actionButton} bg-emerald-600 hover:bg-emerald-500 min-w-[200px] h-[52px] ring-2 ring-emerald-500/40 ring-offset-2 ring-offset-black/80`}
+                  className={`${styles.actionButton} bg-zinc-800 hover:bg-zinc-700 text-zinc-50 border border-zinc-700 min-w-[140px]`}
                 >
                   <div className='flex items-center justify-center gap-2'>
-                    <FontAwesomeIcon icon={faCheckCircle} /> MARK AS FINISHED
+                    <FontAwesomeIcon icon={faCheckCircle} /> FINISH JOB
                   </div>
                 </button>
               </>
@@ -578,15 +574,15 @@ export const CreateJob = () => {
               <button
                 disabled={isCreating}
                 onClick={handleCreateJob}
-                className={`${styles.actionButton} min-w-[200px] h-[52px] ring-2 ring-interactive/40 ring-offset-2 ring-offset-black/80`}
+                className={`${styles.actionButton} bg-emerald-500 hover:bg-emerald-400 text-emerald-950 min-w-[160px]`}
               >
                 {isCreating ? (
                   <div className='flex items-center justify-center gap-2'>
-                    <FontAwesomeIcon icon={faSpinner} spin /> INITIALIZING
+                    <FontAwesomeIcon icon={faSpinner} spin /> STARTING\u2026
                   </div>
                 ) : (
                   <div className='flex items-center justify-center gap-2'>
-                    <FontAwesomeIcon icon={faBolt} /> INITIALIZE JOB
+                    <FontAwesomeIcon icon={faBolt} /> START JOB
                   </div>
                 )}
               </button>
@@ -594,97 +590,95 @@ export const CreateJob = () => {
           </div>
         </div>
 
-        <div className={styles.statsGrid}>
-          <div className={styles.statItem}>
-            <label className='text-[10px] font-black text-white/30 uppercase tracking-widest'>
-              Agent Nonce
-            </label>
-            <input
-              type='text'
-              value={agentNonce}
-              onChange={(e) =>
-                setAgentNonce(Number(e.target.value.replace(/\D/g, '')))
-              }
-              className='bg-transparent border-none p-0 text-white font-mono text-lg focus:ring-0 w-full'
-            />
+        <div className='px-5 py-3 flex items-center justify-between'>
+          <div className='flex items-center gap-4'>
+            <div className='flex items-center gap-2'>
+              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
+                Token
+              </span>
+              <span className='text-base font-mono text-zinc-50'>{token}</span>
+            </div>
+            <div className='flex items-center gap-2'>
+              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
+                Cost
+              </span>
+              <span className='text-base font-mono text-zinc-50'>{amount} EGLD</span>
+            </div>
           </div>
-          <div className={styles.statItem}>
-            <label className='text-[10px] font-black text-white/30 uppercase tracking-widest'>
-              Service ID
-            </label>
-            <input
-              type='text'
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-              className='bg-transparent border-none p-0 text-white font-mono text-lg focus:ring-0 w-full'
-            />
-          </div>
-          <div className={styles.statItem}>
-            <label className='text-[10px] font-black text-white/30 uppercase tracking-widest'>
-              Payment Token
-            </label>
-            <input
-              type='text'
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className='bg-transparent border-none p-0 text-white font-mono text-lg focus:ring-0 w-full'
-            />
-          </div>
-          <div className={styles.statItem}>
-            <label className='text-[10px] font-black text-white/30 uppercase tracking-widest'>
-              Token Nonce
-            </label>
-            <input
-              type='text'
-              value={nonce}
-              onChange={(e) =>
-                setNonce(Number(e.target.value.replace(/\D/g, '')))
-              }
-              className='bg-transparent border-none p-0 text-white font-mono text-lg focus:ring-0 w-full'
-            />
-          </div>
-          <div className={styles.statItem}>
-            <label className='text-[10px] font-black text-white/30 uppercase tracking-widest'>
-              Amount
-            </label>
-            <input
-              type='text'
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className='bg-transparent border-none p-0 text-white font-mono text-lg focus:ring-0 w-full'
-            />
-          </div>
+          <button
+            onClick={() => setShowAdvanced((prev) => !prev)}
+            className='text-base text-zinc-500 hover:text-zinc-50 transition-colors duration-100 flex items-center gap-1 cursor-pointer'
+          >
+            Advanced
+            <FontAwesomeIcon icon={showAdvanced ? faChevronUp : faChevronDown} />
+          </button>
         </div>
+
+        {showAdvanced && (
+          <div className='px-5 pb-4 grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-zinc-800 pt-3'>
+            <div className='flex flex-col gap-1'>
+              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
+                Agent Nonce
+              </span>
+              <input
+                type='number'
+                value={agentNonce}
+                onChange={(e) => setAgentNonce(Number(e.target.value))}
+                className='bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-50 font-mono text-base focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors duration-100'
+              />
+            </div>
+            <div className='flex flex-col gap-1'>
+              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
+                Service ID
+              </span>
+              <input
+                type='text'
+                value={serviceId}
+                onChange={(e) => setServiceId(e.target.value)}
+                className='bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-50 font-mono text-base focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors duration-100'
+              />
+            </div>
+            <div className='flex flex-col gap-1'>
+              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
+                Token Nonce
+              </span>
+              <input
+                type='number'
+                value={nonce}
+                onChange={(e) => setNonce(Number(e.target.value))}
+                className='bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-50 font-mono text-base focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors duration-100'
+              />
+            </div>
+          </div>
+        )}
       </motion.div>
 
-      {/* Chat Arena */}
+      {/* Chat */}
       <AnimatePresence mode='wait'>
         {jobId ? (
           <motion.div
             key='chat-active'
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.03 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             className={`${styles.glassCard} flex flex-col`}
             style={{ minHeight: '520px' }}
           >
             {/* Chat header */}
-            <div className='px-6 py-4 border-b border-white/5 bg-white/5 flex items-center justify-between'>
-              <div className='flex items-center gap-3'>
-                <div className='w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400'>
+            <div className='px-5 py-3 border-b border-zinc-800 flex items-center justify-between'>
+              <div className='flex items-center gap-2.5'>
+                <div className='w-8 h-8 rounded-md bg-zinc-800 text-emerald-400 flex items-center justify-center'>
                   <FontAwesomeIcon icon={faRobot} />
                 </div>
                 <div>
-                  <h3 className='font-bold text-white uppercase tracking-tight text-sm'>
-                    Agent Chat
-                  </h3>
-                  <div className='font-mono text-[9px] text-white/30 truncate max-w-[260px]'>
-                    JOB: {jobId}
+                  <div className='text-base font-medium text-zinc-50'>Agent Chat</div>
+                  <div className='text-base font-mono text-zinc-500 truncate max-w-[260px]'>
+                    Job: {jobId}
                   </div>
                 </div>
               </div>
 
-              {/* Status badge */}
               <div>
                 {(verificationStatus === 'verifying' ||
                   verificationStatus === 'processing') && (
@@ -715,16 +709,36 @@ export const CreateJob = () => {
             </div>
 
             {/* Message list */}
-            <div className='flex-1 overflow-y-auto custom-scrollbar px-6 py-4 flex flex-col gap-4'>
+            <div className='flex-1 overflow-y-auto custom-scrollbar px-5 py-4 flex flex-col gap-3'>
               {messages.length === 0 && (
                 <div className='flex-1 flex flex-col items-center justify-center gap-3 py-16'>
                   <FontAwesomeIcon
                     icon={faRobot}
-                    className='text-5xl text-white/80'
+                    className='text-3xl text-zinc-600'
                   />
-                  <span className='text-[10px] font-black tracking-[0.2em] uppercase text-white/40'>
-                    Send a message to start the conversation
+                  <span className='text-base text-zinc-500'>
+                    Your agent is standing by
                   </span>
+                  <div className='flex flex-wrap gap-2 mt-4 justify-center'>
+                    <button
+                      onClick={() => setPrompt('Start a Token Safari \u2014 explore trending tokens')}
+                      className='px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-md hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
+                    >
+                      <FontAwesomeIcon icon={faLeaf} className='mr-1.5 text-emerald-400' /> Token Safari
+                    </button>
+                    <button
+                      onClick={() => setPrompt('What can you do?')}
+                      className='px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-md hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
+                    >
+                      <FontAwesomeIcon icon={faComments} className='mr-1.5 text-zinc-500' /> What can you do?
+                    </button>
+                    <button
+                      onClick={() => setPrompt('Show me trending tokens on devnet')}
+                      className='px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-md hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
+                    >
+                      <FontAwesomeIcon icon={faChartLine} className='mr-1.5 text-zinc-500' /> Trending tokens
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -733,15 +747,13 @@ export const CreateJob = () => {
                   return (
                     <motion.div
                       key={msg.id}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className='flex justify-end gap-3'
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.15 }}
+                      className='flex justify-end'
                     >
-                      <div className='max-w-[75%] bg-white/10 border border-white/15 text-white rounded-2xl rounded-br-sm px-4 py-3 text-sm leading-relaxed'>
+                      <div className='max-w-[75%] bg-zinc-800 text-zinc-50 rounded-lg rounded-br-sm px-3 py-2.5 text-base'>
                         {msg.content}
-                      </div>
-                      <div className='w-7 h-7 shrink-0 mt-1 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300 text-xs'>
-                        <FontAwesomeIcon icon={faUser} />
                       </div>
                     </motion.div>
                   );
@@ -751,47 +763,43 @@ export const CreateJob = () => {
                   return (
                     <motion.div
                       key={msg.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className='flex justify-start gap-3'
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.15 }}
+                      className='flex justify-start gap-2.5'
                     >
-                      <div className='w-7 h-7 shrink-0 mt-1 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs'>
+                      <div className='w-7 h-7 shrink-0 mt-0.5 rounded-md bg-zinc-800 flex items-center justify-center text-emerald-400'>
                         <FontAwesomeIcon icon={faRobot} />
                       </div>
-                      <div className='max-w-[75%] bg-white/5 border border-white/10 text-white rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap'>
+                      <div className='max-w-[75%] bg-zinc-900 border border-zinc-800 text-zinc-50 rounded-lg rounded-bl-sm px-3 py-2.5 text-base whitespace-pre-wrap'>
                         {msg.content}
                       </div>
                     </motion.div>
                   );
                 }
 
-                // system / status messages
                 return (
                   <motion.div
                     key={msg.id}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.15 }}
                     className='flex justify-center'
                   >
                     <div
-                      className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest border ${
+                      className={`flex items-center gap-2 text-base ${
                         msg.isError
-                          ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                          : 'bg-white/5 border-white/10 text-white/40'
+                          ? 'text-red-400'
+                          : msg.isStatus
+                            ? 'text-zinc-500'
+                            : 'text-zinc-400'
                       }`}
                     >
                       {msg.isStatus && (
-                        <FontAwesomeIcon
-                          icon={faSpinner}
-                          spin
-                          className='text-[9px]'
-                        />
+                        <div className='w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse' />
                       )}
                       {msg.isError && (
-                        <FontAwesomeIcon
-                          icon={faTimesCircle}
-                          className='text-[9px]'
-                        />
+                        <span>&times;</span>
                       )}
                       {msg.content}
                     </div>
@@ -799,20 +807,20 @@ export const CreateJob = () => {
                 );
               })}
 
-              {/* Typing indicator */}
               {isPrompting && (
                 <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className='flex justify-start gap-3'
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.15 }}
+                  className='flex justify-start gap-2.5'
                 >
-                  <div className='w-7 h-7 shrink-0 mt-1 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs'>
+                  <div className='w-7 h-7 shrink-0 mt-0.5 rounded-md bg-zinc-800 flex items-center justify-center text-emerald-400'>
                     <FontAwesomeIcon icon={faRobot} />
                   </div>
-                  <div className='bg-white/5 border border-white/10 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1'>
-                    <span className='w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:0ms]' />
-                    <span className='w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:150ms]' />
-                    <span className='w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:300ms]' />
+                  <div className='bg-zinc-900 border border-zinc-800 rounded-lg rounded-bl-sm px-3 py-2.5 flex items-center gap-1.5'>
+                    <span className='w-1.5 h-1.5 bg-zinc-500 rounded-full animate-pulse' />
+                    <span className='w-1.5 h-1.5 bg-zinc-500 rounded-full animate-pulse [animation-delay:150ms]' />
+                    <span className='w-1.5 h-1.5 bg-zinc-500 rounded-full animate-pulse [animation-delay:300ms]' />
                   </div>
                 </motion.div>
               )}
@@ -821,21 +829,21 @@ export const CreateJob = () => {
             </div>
 
             {/* Input bar */}
-            <div className='px-6 pb-6 pt-3'>
-              <div className='flex items-center gap-3 bg-black/30 border border-white/10 rounded-2xl px-4 py-3 focus-within:border-interactive/40 focus-within:ring-1 focus-within:ring-interactive/20 transition-all'>
+            <div className='px-5 pb-5 pt-3'>
+              <div className='flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/20 transition-colors duration-100'>
                 <textarea
                   ref={textareaRef}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={handleKeyDown}
                   rows={1}
-                  className='flex-1 bg-transparent border-none p-0 text-white placeholder:text-white/20 focus:outline-none focus:ring-0 resize-none text-sm leading-relaxed max-h-32 overflow-y-auto custom-scrollbar'
-                  placeholder='Type a message… (Enter to send, Shift+Enter for newline)'
+                  className='flex-1 bg-transparent border-none p-0 text-base text-zinc-50 placeholder:text-zinc-600 focus:outline-none focus:ring-0 resize-none leading-relaxed max-h-32 overflow-y-auto custom-scrollbar'
+                  placeholder='Tell the agent what to do\u2026'
                 />
                 <button
                   disabled={isPrompting || !prompt.trim()}
                   onClick={handleSendPrompt}
-                  className='shrink-0 w-10 h-10 bg-interactive hover:bg-interactive/90 text-white rounded-xl shadow-lg shadow-interactive/30 flex items-center justify-center transition-all hover:scale-105 active:scale-90 disabled:opacity-20 disabled:scale-100 disabled:shadow-none'
+                  className='shrink-0 w-9 h-9 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 rounded-md flex items-center justify-center transition-colors duration-100 disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
                 >
                   {isPrompting ? (
                     <FontAwesomeIcon icon={faSpinner} spin />
@@ -844,9 +852,6 @@ export const CreateJob = () => {
                   )}
                 </button>
               </div>
-              <p className='text-white/20 text-[10px] text-right mt-1.5 font-mono'>
-                Enter ↵ to send · Shift+Enter for newline
-              </p>
             </div>
           </motion.div>
         ) : (
@@ -854,37 +859,36 @@ export const CreateJob = () => {
             key='execution-idle'
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className='flex-1 py-12 flex flex-col items-center justify-center text-center gap-6'
+            transition={{ duration: 0.15 }}
+            className='flex-1 py-12 flex flex-col items-center justify-center text-center gap-4'
           >
-            <div className='w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/80 mb-2 shadow-inner shadow-white/5'>
-              <FontAwesomeIcon icon={faRobot} className='text-4xl' />
+            <div className='w-16 h-16 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600'>
+              <FontAwesomeIcon icon={faRobot} className='text-3xl' />
             </div>
             <div>
-              <h3 className='text-2xl font-black text-white uppercase tracking-tight'>
-                System Inactive
-              </h3>
-              <p className='text-white/40 max-w-sm mx-auto mt-2'>
-                Initialize a job configuration to establish a secure uplink with
-                the AI agent.
+              <p className='text-base font-medium text-zinc-50'>Agent Idle</p>
+              <p className='text-base text-zinc-500 max-w-sm mx-auto mt-1'>
+                Hit &ldquo;Start Job&rdquo; above to put the agent to work.
               </p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Feedback modal: rate 1–5 stars (half stars allowed), then submit to reputation registry */}
+      {/* Feedback modal */}
       {showFeedbackModal && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm'>
+        <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60'>
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={`${styles.glassCard} max-w-md w-full p-8 flex flex-col gap-6`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.15 }}
+            className='bg-zinc-900 border border-zinc-800 rounded-lg max-w-sm w-full p-6 flex flex-col gap-4'
           >
-            <h3 className='text-lg font-black text-white uppercase tracking-tight'>
-              Rate the bot
+            <h3 className='text-lg font-semibold text-zinc-50 tracking-tight'>
+              Rate your experience
             </h3>
-            <p className='text-white/60 text-sm'>
-              How was your experience? Each star = 20 (half stars allowed). Your rating is sent on-chain to the reputation registry.
+            <p className='text-base text-zinc-500 leading-relaxed'>
+              How did the agent do? Your rating goes on-chain.
             </p>
             <div className='flex items-center gap-0.5'>
               {[0, 1, 2, 3, 4].map((starIndex) => {
@@ -895,7 +899,11 @@ export const CreateJob = () => {
                 const filled = showFull || showHalf;
                 return (
                   <div key={starIndex} className='relative flex w-10'>
-                    <span className={`pointer-events-none text-2xl transition-colors ${filled ? 'text-amber-400' : 'text-white/20'}`}>
+                    <span
+                      className={`pointer-events-none text-2xl transition-colors ${
+                        filled ? 'text-amber-400' : 'text-zinc-700'
+                      }`}
+                    >
                       {showFull ? (
                         <FontAwesomeIcon icon={faStar} />
                       ) : showHalf ? (
@@ -920,17 +928,19 @@ export const CreateJob = () => {
                 );
               })}
             </div>
-            <p className='text-white/50 text-xs font-mono'>
-              {feedbackRating > 0 ? `${feedbackRating / 20} star(s) (rating: ${feedbackRating})` : 'Tap stars to rate (each star = 20)'}
+            <p className='text-base text-zinc-500 font-mono'>
+              {feedbackRating > 0
+                ? `${feedbackRating / 20} star(s) (rating: ${feedbackRating})`
+                : 'Tap stars to rate (each star = 20)'}
             </p>
             {feedbackError && (
-              <p className='text-red-400 text-sm'>{feedbackError}</p>
+              <p className='text-red-400 text-base'>{feedbackError}</p>
             )}
             <div className='flex gap-3'>
               <button
                 type='button'
                 onClick={handleCloseFeedbackModal}
-                className='flex-1 px-4 py-3 rounded-xl border border-white/20 text-white/80 hover:bg-white/10 transition-colors text-sm font-bold'
+                className='flex-1 px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 transition-colors duration-100 text-base font-medium cursor-pointer'
               >
                 Skip
               </button>
@@ -938,27 +948,20 @@ export const CreateJob = () => {
                 type='button'
                 disabled={feedbackRating <= 0 || isSubmittingFeedback}
                 onClick={handleSubmitFeedback}
-                className={`flex-1 ${styles.actionButton} bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 flex items-center justify-center gap-2`}
+                className='flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 rounded-md font-medium text-base transition-colors duration-100 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer'
               >
                 {isSubmittingFeedback ? (
                   <>
-                    <FontAwesomeIcon icon={faSpinner} spin /> Submitting…
+                    <FontAwesomeIcon icon={faSpinner} spin /> Submitting\u2026
                   </>
                 ) : (
-                  <>Submit feedback</>
+                  <>Submit</>
                 )}
               </button>
             </div>
           </motion.div>
         </div>
       )}
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-      `}</style>
     </div>
   );
 };

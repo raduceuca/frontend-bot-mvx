@@ -1,0 +1,1 @@
+export { HomeCapabilities } from './HomeCapabilities';

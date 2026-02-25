@@ -1,7 +1,4 @@
-import {
-  faRobot
-} from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faGift, faRobot } from '@fortawesome/free-solid-svg-icons';
 import classNames from 'classnames';
 import { useState } from 'react';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
@@ -11,16 +8,19 @@ import { MenuItemsType, SideMenuPropsType } from './sideMenu.types';
 
 const menuItems: MenuItemsType[] = [
   {
-    title: 'Create Job',
+    title: 'New Job',
     icon: faRobot,
     id: ItemsIdentifiersEnum.createJob
+  },
+  {
+    title: 'Mystery Box',
+    icon: faGift,
+    id: ItemsIdentifiersEnum.mysteryBox
   }
 ];
 
 export const SideMenu = ({ setIsOpen }: SideMenuPropsType) => {
-  const [activeItem, setActiveItem] = useState(
-    ItemsIdentifiersEnum.createJob
-  );
+  const [activeItem, setActiveItem] = useState(ItemsIdentifiersEnum.createJob);
 
   const handleMenuItemClick = (id: ItemsIdentifiersEnum) => {
     setIsOpen(false);

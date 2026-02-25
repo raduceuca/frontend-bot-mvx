@@ -41,7 +41,10 @@ export const useHandleThemeManagement = () => {
 
   useEffect(() => {
     const observer = new MutationObserver(() =>
-      setRootTheme(document.documentElement.getAttribute(attributeHandle))
+      setRootTheme(
+        document.documentElement.getAttribute(attributeHandle) ||
+          'mvx:dark-theme'
+      )
     );
 
     observer.observe(document.documentElement, {

@@ -2,8 +2,7 @@
 
 @theme {
   --breakpoint-xs: 30rem;
-  /* 480px */
-  --background-image-dark-theme: url('/dark-theme-bg.png');
+
   --background-color-primary: var(--mvx-bg-color-primary);
   --background-color-secondary: var(--mvx-bg-color-secondary);
   --background-color-tertiary: var(--mvx-hover-bg-primary);
@@ -15,15 +14,19 @@
   --background-color-btn-hover: var(--mvx-hover-color-primary);
   --background-color-logo-primary: var(--mvx-text-color-primary);
   --background-color-icon: var(--mvx-link-color);
+
   --color-primary: var(--mvx-text-color-primary);
   --color-secondary: var(--mvx-text-color-secondary);
   --color-tertiary: var(--mvx-text-color-tertiary);
   --color-accent: var(--mvx-text-accent-color);
+  --color-teal: #23F7DD;
+  --color-teal-dim: rgba(35, 247, 221, 0.5);
   --color-btn-primary: var(--mvx-button-text-primary);
   --color-btn-secondary: var(--mvx-button-text-secondary);
   --color-link: var(--mvx-link-color);
   --color-success: var(--mvx-success-color);
   --color-error: var(--mvx-error-color);
+
   --border-color-secondary: var(--mvx-border-color-secondary);
   --border-color-logo: var(--mvx-text-color-primary);
 }

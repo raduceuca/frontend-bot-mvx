@@ -26,3 +26,51 @@
 * {
   font-family: 'Satoshi', sans-serif;
 }
+
+:root {
+  /* Backgrounds */
+  --bg-0: #09090B;
+  --bg-1: #111114;
+  --bg-2: #18181B;
+  --bg-3: #27272A;
+
+  /* Borders */
+  --border-0: #27272A;
+  --border-1: #3F3F46;
+  --border-2: #52525B;
+
+  /* Text */
+  --text-0: #FAFAFA;
+  --text-1: #A1A1AA;
+  --text-2: #71717A;
+  --text-3: #52525B;
+
+  /* Accent */
+  --accent: #34D399;
+  --accent-dim: #065F46;
+  --accent-text: #022C22;
+
+  /* Semantic */
+  --error: #EF4444;
+  --warning: #EAB308;
+  --info: #3B82F6;
+}
+
+body {
+  background-color: #09090B;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }

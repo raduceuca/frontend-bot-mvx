@@ -59,15 +59,15 @@ export const Faucet = () => {
 
   return (
     <div className='flex flex-col items-start gap-4'>
-      <p className='text-sm text-secondary tracking-wide'>
+      <p className='text-base text-zinc-400'>
         You can request 5 xEGLD from the Devnet Faucet every 24 hours. Wait for
         the transaction to be processed after requesting.
       </p>
 
       {message && (
         <div
-          className={`text-sm ${
-            message.isError ? 'text-red-500' : 'text-green-500'
+          className={`text-base ${
+            message.isError ? 'text-red-400' : 'text-emerald-400'
           }`}
         >
           {message.text}

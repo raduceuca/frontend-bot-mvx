@@ -1,5 +1,3 @@
-import { faHeart } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { DateTime } from 'luxon';
 import { MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -13,8 +11,7 @@ const styles = {
   footerContainer: 'footer-container flex flex-col gap-1 font-medium items-center justify-center text-sm text-[#989898]',
   footerDisclaimerLink: 'footer-disclaimer-link cursor-pointer hover:underline',
   footerDescription: 'footer-description flex items-center justify-center gap-1 text-sm text-neutral-500 gap-1',
-  footerDescriptionNetwork: 'footer-description-network capitalize',
-  footerHeartIcon: 'footer-heart-icon text-red-500'
+  footerDescriptionNetwork: 'footer-description-network capitalize'
 } satisfies Record<string, string>;
 
 export const Footer = () => {
@@ -48,11 +45,7 @@ export const Footer = () => {
         </div>
 
         <div className={styles.footerDescription}>
-          <span>Made with</span>
-
-          <FontAwesomeIcon icon={faHeart} className={styles.footerHeartIcon} />
-
-          <span>by the MultiversX team, {currentYear}</span>
+          <span>&copy; MultiversX {currentYear}</span>
         </div>
       </div>
     </footer>

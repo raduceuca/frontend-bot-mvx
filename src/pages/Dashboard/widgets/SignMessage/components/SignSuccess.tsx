@@ -51,13 +51,23 @@ export const SignSuccess = (props: VerifyMessagePropsType) => {
         <div className={styles.encodedMessageContainer}>
           <Label>Encoded message:</Label>
 
-          <p data-testid={DataTestIdsEnum.encodedMessage} className={styles.encodedMessageText}>{encodedMessage}</p>
+          <p
+            data-testid={DataTestIdsEnum.encodedMessage}
+            className={styles.encodedMessageText}
+          >
+            {encodedMessage}
+          </p>
         </div>
 
         <div className={styles.decodedMessageContainer}>
           <Label>Decoded message:</Label>
 
-          <p data-testid={DataTestIdsEnum.decodedMessage} className={styles.decodedMessageText}>{decodedMessage}</p>
+          <p
+            data-testid={DataTestIdsEnum.decodedMessage}
+            className={styles.decodedMessageText}
+          >
+            {decodedMessage}
+          </p>
         </div>
       </div>
     </div>

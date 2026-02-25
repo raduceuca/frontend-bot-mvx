@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 import { defineConfig } from 'vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import svgrPlugin from 'vite-plugin-svgr';
@@ -9,7 +10,7 @@ export default defineConfig({
     port: 3003,
     strictPort: true,
     host: true,
-    https: false,
+    https: true,
     allowedHosts: ['mvx-demo-bot', 'mvx-demo-bot.elrond.ro'],
     watch: {
       usePolling: false,
@@ -22,7 +23,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    // basicSsl(),
+    basicSsl(),
     tsconfigPaths(),
     svgrPlugin({
       svgrOptions: {

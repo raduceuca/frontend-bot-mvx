@@ -1,82 +1,41 @@
-import classNames from 'classnames';
-import { FunctionComponent, MouseEvent, SVGProps } from 'react';
+import { MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import { ReactComponent as HomeDarkThemeIcon } from 'assets/icons/home-dark-theme-icon.svg';
-import { ReactComponent as HomeLightThemeIcon } from 'assets/img/bright-light-icon.svg';
-import { ReactComponent as HomeVibeThemeIcon } from 'assets/img/vibe-mode-icon.svg';
-import { Button } from 'components/Button';
-import {
-  ThemeOptionType,
-  useHandleThemeManagement
-} from 'hooks/useHandleThemeManagement';
 import { RouteNamesEnum } from 'localConstants';
 import styles from './homeHero.styles';
 
-interface HomeThemeOptionType extends ThemeOptionType {
-  icon: FunctionComponent<SVGProps<SVGSVGElement>>;
-  backgroundClass: string;
-  title: string;
-}
-
-const themeExtraProperties: Record<
-  string,
-  Omit<HomeThemeOptionType, keyof ThemeOptionType>
-> = {
-  'mvx:dark-theme': {
-    icon: HomeDarkThemeIcon,
-    title: 'Customizable',
-    backgroundClass: 'bg-dark-theme'
-  },
-  'mvx:vibe-theme': {
-    icon: HomeVibeThemeIcon,
-    title: 'Vibrant',
-    backgroundClass: 'bg-vibe-theme'
-  },
-  'mvx:light-theme': {
-    icon: HomeLightThemeIcon,
-    title: 'Ownable',
-    backgroundClass: 'bg-light-theme'
-  }
-};
-
 export const HomeHero = () => {
   const navigate = useNavigate();
-
-  const { activeTheme } = useHandleThemeManagement();
 
   const handleLogIn = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     navigate(RouteNamesEnum.unlock);
   };
 
-  const activeHomeTheme = activeTheme
-    ? { ...activeTheme, ...themeExtraProperties[activeTheme.identifier] }
-    : null;
-
-  const heroContainerClasses = activeHomeTheme
-    ? classNames(styles.heroContainer, activeHomeTheme.backgroundClass)
-    : styles.heroContainer;
-
   return (
-    <div className={heroContainerClasses}>
+    <div className={styles.heroContainer}>
       <div className={styles.heroSectionTop}>
         <div className={styles.heroSectionTopContent}>
+          <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
+            Autonomous Agent on MultiversX
+          </span>
           <h1 className={styles.heroTitle}>MultiversX Bot</h1>
-
           <p className={styles.heroDescription}>
-            A powerful MultiversX bot that can help you with many things.
+            Give an AI a wallet. See what happens.
+          </p>
+          <p className='text-base text-zinc-500 max-w-md'>
+            MultiversX Bot listens, decides, and executes on-chain — swaps,
+            transfers, contract calls. No hand-holding required.
           </p>
         </div>
-
         <div className={styles.heroSectionTopButtons}>
-          <Button onClick={handleLogIn}>Connect Wallet</Button>
-
-
+          <button
+            onClick={handleLogIn}
+            className='bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-medium text-base rounded-md px-4 py-2 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20 cursor-pointer'
+          >
+            Connect Wallet
+          </button>
         </div>
       </div>
-
-      {/* Hero section bottom removed as there is only one theme */}
     </div>
   );
 };
