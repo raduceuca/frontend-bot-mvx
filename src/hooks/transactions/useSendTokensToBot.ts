@@ -94,7 +94,10 @@ export const useSendTokensToBot = () => {
       (sentTx as any).hash || (sentTx as any).getHash?.()?.toString?.();
 
     // Wait for on-chain confirmation
-    const watcher = new TransactionWatcher(networkProvider);
+    const watcher = new TransactionWatcher(networkProvider, {
+      timeoutMilliseconds: 120_000,
+      pollingIntervalMilliseconds: 3_000
+    });
     const txOnChain = await watcher.awaitCompleted(txHash);
 
     if (!txOnChain.status.isSuccessful()) {
