@@ -7,7 +7,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   server: {
-    port: 3006,
+    port: 3003,
     strictPort: true,
     host: true,
     https: true,
