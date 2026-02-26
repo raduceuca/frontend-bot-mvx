@@ -799,26 +799,26 @@ export const CreateJob = () => {
       }
       setSessionRating(null);
       refetchSessions();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (isUserCancellation(err)) {
         setSessionRatingError(
           'Signing cancelled. Your rating was not submitted.'
         );
       } else {
-        setSessionRatingError(
-          err?.message || 'Couldn\u2019t submit your rating. Try again?'
-        );
+        const message =
+          err instanceof Error ? err.message : 'Couldn\u2019t submit your rating. Try again?';
+        setSessionRatingError(message);
       }
     } finally {
       setIsSubmittingSessionRating(false);
     }
   };
 
-  const handleCancelSessionRating = () => {
+  const handleCancelSessionRating = useCallback(() => {
     if (isSubmittingSessionRating) return;
     setSessionRating(null);
     setSessionRatingError(null);
-  };
+  }, [isSubmittingSessionRating]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -835,12 +835,18 @@ export const CreateJob = () => {
     el.style.height = `${el.scrollHeight}px`;
   }, [prompt]);
 
-  // Escape key handler for modals
+  // Escape key handler for modals — only dismiss the topmost one
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (showFaucetPanel) setShowFaucetPanel(false);
-      if (phase === 'rating' && pendingFeedback) handleCloseFeedbackModal();
+      if (showFaucetPanel) {
+        setShowFaucetPanel(false);
+      } else if (phase === 'rating' && pendingFeedback) {
+        resetAll();
+        setPendingFeedback(null);
+        setFeedbackRating(0);
+        setFeedbackError(null);
+      }
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
