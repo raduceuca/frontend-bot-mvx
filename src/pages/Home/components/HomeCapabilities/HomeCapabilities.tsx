@@ -95,7 +95,7 @@ export const HomeCapabilities = () => {
         {/* Badge */}
         <div className='flex items-center gap-2'>
           <span className='text-sm font-mono font-semibold text-teal/80 uppercase tracking-wider bg-zinc-950/60 px-2.5 py-1 rounded-md'>
-            Experiment
+            Live on Devnet
           </span>
         </div>
 
@@ -105,9 +105,9 @@ export const HomeCapabilities = () => {
             Mystery Box
           </h3>
           <p className='text-base text-zinc-300 leading-relaxed'>
-            Send 1 EGLD. Max picks a surprise mix of tokens from the DEX and
-            sends them straight to your wallet. No strategy, no promises — just
-            curiosity on devnet.
+            Send 1 xEGLD. Max scans xExchange, picks tokens he likes, and sends
+            them straight to your wallet. Every box is different — what will Max
+            find?
           </p>
         </div>
 

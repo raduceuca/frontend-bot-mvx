@@ -78,7 +78,7 @@ const resources = [
 ];
 
 export const BuildYourAgent = () => {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <section className='relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-8'>
@@ -186,7 +186,7 @@ export const BuildYourAgent = () => {
                       <span>{step.repo.label}</span>
                       <FontAwesomeIcon
                         icon={faArrowUpRightFromSquare}
-                        className='text-xs opacity-50'
+                        className='text-sm opacity-50'
                       />
                     </a>
                   )}
@@ -220,7 +220,7 @@ export const BuildYourAgent = () => {
                   </div>
                   <FontAwesomeIcon
                     icon={faArrowUpRightFromSquare}
-                    className='ml-auto text-xs text-zinc-600 group-hover:text-zinc-400 transition-colors duration-150 shrink-0'
+                    className='ml-auto text-sm text-zinc-600 group-hover:text-zinc-400 transition-colors duration-150 shrink-0'
                   />
                 </a>
               ))}

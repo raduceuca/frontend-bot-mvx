@@ -22,7 +22,7 @@ const statusIcon = (status: TrackedTransaction['status']) => {
     return (
       <FontAwesomeIcon
         icon={faCheckCircle}
-        className='text-success text-xs shrink-0'
+        className='text-success text-sm shrink-0'
       />
     );
   }
@@ -30,7 +30,7 @@ const statusIcon = (status: TrackedTransaction['status']) => {
     return (
       <FontAwesomeIcon
         icon={faTimesCircle}
-        className='text-error text-xs shrink-0'
+        className='text-error text-sm shrink-0'
       />
     );
   }
@@ -38,7 +38,7 @@ const statusIcon = (status: TrackedTransaction['status']) => {
     <FontAwesomeIcon
       icon={faSpinner}
       spin
-      className='text-teal text-xs shrink-0'
+      className='text-teal text-sm shrink-0'
     />
   );
 };
@@ -91,14 +91,14 @@ export const TransactionActivityBar = ({
             {transactions.length !== 1 ? 's' : ''}
           </span>
           {pendingCount > 0 && (
-            <span className='text-teal font-mono text-xs bg-teal/10 px-1.5 py-0.5 rounded'>
+            <span className='text-teal font-mono text-sm bg-teal/10 px-1.5 py-0.5 rounded'>
               {pendingCount} pending
             </span>
           )}
         </div>
         <FontAwesomeIcon
           icon={expanded ? faChevronUp : faChevronDown}
-          className='text-zinc-600 text-xs'
+          className='text-zinc-600 text-sm'
         />
       </button>
 
@@ -122,14 +122,14 @@ export const TransactionActivityBar = ({
 
                   <div className='flex flex-col min-w-0 flex-1'>
                     <span className='text-zinc-300 truncate'>{tx.label}</span>
-                    <span className='text-xs text-zinc-600 font-mono'>
+                    <span className='text-sm text-zinc-600 font-mono'>
                       {truncateHash(tx.txHash)}
                       <span className='mx-1.5 text-zinc-700'>&middot;</span>
                       {timeAgo(tx.timestamp)}
                     </span>
                   </div>
 
-                  <span className='text-xs font-mono text-zinc-500 whitespace-nowrap'>
+                  <span className='text-sm font-mono text-zinc-500 whitespace-nowrap'>
                     {tx.amount} {tx.token}
                   </span>
 
@@ -144,7 +144,7 @@ export const TransactionActivityBar = ({
                   >
                     <FontAwesomeIcon
                       icon={faExternalLink}
-                      className='text-xs'
+                      className='text-sm'
                     />
                   </a>
                 </div>

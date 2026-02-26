@@ -49,7 +49,6 @@ Key routes:
 - `/` → Home (with `/unlock` child)
 - `/dashboard` → Dashboard (authenticated)
 - `/disclaimer` → Disclaimer
-- `/cinematic` → Cinematic Landing
 
 ### Wrappers & Providers
 `src/wrappers/` contains context providers and HOCs that wrap the app:

@@ -56,7 +56,7 @@ const ToastItem = ({
     >
       <FontAwesomeIcon
         icon={isSuccess ? faCheckCircle : faTimesCircle}
-        className={isSuccess ? 'text-success text-xs' : 'text-error text-xs'}
+        className={isSuccess ? 'text-success text-sm' : 'text-error text-sm'}
       />
 
       <div className='flex-1 min-w-0'>
@@ -75,7 +75,7 @@ const ToastItem = ({
         href={`${explorerAddress}/${TRANSACTIONS_ENDPOINT}/${toast.txHash}`}
         target='_blank'
         rel='noopener noreferrer'
-        className={`flex items-center gap-1 text-xs whitespace-nowrap transition-colors duration-150 ${
+        className={`flex items-center gap-1 text-sm whitespace-nowrap transition-colors duration-150 ${
           isSuccess
             ? 'text-success/70 hover:text-success'
             : 'text-error/70 hover:text-error'
@@ -83,7 +83,7 @@ const ToastItem = ({
         aria-label='View on explorer'
       >
         View
-        <FontAwesomeIcon icon={faExternalLink} className='text-[0.6rem]' />
+        <FontAwesomeIcon icon={faExternalLink} />
       </a>
     </motion.div>
   );

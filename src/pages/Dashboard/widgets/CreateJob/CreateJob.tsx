@@ -74,7 +74,7 @@ type JobPhase =
 
 const styles = {
   container: 'create-job-container flex flex-col gap-4 w-full mx-auto flex-1',
-  card: 'bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden',
+  card: 'bg-zinc-900/85 backdrop-blur-md border border-zinc-800 rounded-xl overflow-hidden',
   btn: 'px-4 py-2.5 rounded-lg font-medium text-base transition-colors duration-150 disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30',
   badge: 'flex items-center gap-1.5 px-2 py-0.5 rounded-md text-base font-mono',
   input:
@@ -732,7 +732,7 @@ export const CreateJob = () => {
             addressCopied ? 'text-teal hover:text-teal' : ''
           }`}
         >
-          <FontAwesomeIcon icon={faClone} className='text-xs' />
+          <FontAwesomeIcon icon={faClone} className='text-sm' />
           <span>{addressCopied ? 'Copied' : 'Copy'}</span>
         </button>
         <button
@@ -740,7 +740,7 @@ export const CreateJob = () => {
           className={`${walletBtn} whitespace-nowrap`}
           aria-label='Explorer'
         >
-          <FontAwesomeIcon icon={faExternalLink} className='text-xs' />
+          <FontAwesomeIcon icon={faExternalLink} className='text-sm' />
           <span className='hidden sm:inline'>Explorer</span>
         </button>
       </div>
@@ -751,7 +751,7 @@ export const CreateJob = () => {
           className={walletBtn}
           aria-label='Notifications'
         >
-          <FontAwesomeIcon icon={faBell} className='text-xs' />
+          <FontAwesomeIcon icon={faBell} className='text-sm' />
         </button>
         <span className='text-sm font-mono text-zinc-500 bg-zinc-800/60 px-2 py-0.5 rounded-md capitalize'>
           {network.id}
@@ -761,7 +761,7 @@ export const CreateJob = () => {
           className={`${walletBtn} hover:text-error/80 hover:bg-error/5`}
           aria-label='Disconnect wallet'
         >
-          <FontAwesomeIcon icon={faPowerOff} className='text-xs' />
+          <FontAwesomeIcon icon={faPowerOff} className='text-sm' />
         </button>
       </div>
     </div>
@@ -818,7 +818,7 @@ export const CreateJob = () => {
           >
             <FontAwesomeIcon
               icon={faCoins}
-              className='mr-1 text-warning text-xs'
+              className='mr-1 text-warning text-sm'
             />
             Get 5 xEGLD
           </button>
@@ -953,7 +953,7 @@ export const CreateJob = () => {
             <div className='flex items-center gap-2'>
               <span className='text-base font-medium text-zinc-50'>Max</span>
               {jobId && !isBusy && (
-                <span className='text-xs font-mono text-success/80 bg-success/10 border border-success/15 px-1.5 py-0.5 rounded-md hidden sm:flex items-center gap-1'>
+                <span className='text-sm font-mono text-success/80 bg-success/10 border border-success/15 px-1.5 py-0.5 rounded-md hidden sm:flex items-center gap-1'>
                   <span className='w-1 h-1 rounded-full bg-success' />
                   Active Job
                 </span>
@@ -962,12 +962,12 @@ export const CreateJob = () => {
                 <div
                   role='status'
                   aria-live='polite'
-                  className={`${styles.badge} bg-warning/10 text-warning border border-warning/20 text-xs`}
+                  className={`${styles.badge} bg-warning/10 text-warning border border-warning/20 text-sm`}
                 >
                   <FontAwesomeIcon
                     icon={faSpinner}
                     spin
-                    className='text-[0.6rem]'
+                    className='text-sm'
                   />
                   {phase === 'creating' && 'Starting'}
                   {phase === 'prompting' && 'Thinking'}
@@ -1037,7 +1037,8 @@ export const CreateJob = () => {
                   Max is ready
                 </p>
                 <p className='text-base text-zinc-500 max-w-sm mx-auto mt-1'>
-                  Connect your wallet to get started.
+                  Connect your wallet to get started. This runs on devnet
+                  — test tokens only, no real money.
                 </p>
               </div>
 
@@ -1065,7 +1066,7 @@ export const CreateJob = () => {
                     <span className='text-sm font-medium text-zinc-50'>
                       Max
                     </span>
-                    <span className='text-[0.65rem] text-zinc-500 font-mono'>
+                    <span className='text-sm text-zinc-500 font-mono'>
                       AI Agent on MultiversX
                     </span>
                   </div>
@@ -1090,9 +1091,25 @@ export const CreateJob = () => {
                   Start a job with Max
                 </p>
                 <p className='text-base text-zinc-500 max-w-sm mx-auto mt-1'>
-                  Pay {amount} EGLD to activate Max. Ask anything, trigger
+                  Pay {amount} xEGLD to activate Max. Ask anything, trigger
                   swaps, or try a Mystery Box.
                 </p>
+                {isDevnet && (
+                  <p className='text-sm text-zinc-600 max-w-sm mx-auto mt-1.5'>
+                    Devnet — test tokens only, no real money.
+                    {needsFunds && (
+                      <>
+                        {' '}
+                        <button
+                          onClick={() => setShowFaucetPanel(true)}
+                          className='text-teal hover:text-teal/80 transition-colors duration-150 cursor-pointer'
+                        >
+                          Get free xEGLD from the faucet.
+                        </button>
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
 
               <button
@@ -1356,7 +1373,7 @@ export const CreateJob = () => {
       {/* Faucet panel */}
       {showFaucetPanel && (
         <div
-          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 overflow-y-auto'
+          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 overflow-y-auto'
           role='dialog'
           aria-modal='true'
           aria-labelledby='faucet-title'
@@ -1397,7 +1414,7 @@ export const CreateJob = () => {
       {/* Feedback modal */}
       {phase === 'rating' && pendingFeedback && (
         <div
-          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 overflow-y-auto'
+          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 overflow-y-auto'
           role='dialog'
           aria-modal='true'
           aria-labelledby='feedback-title'
