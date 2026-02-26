@@ -1,5 +1,6 @@
 import {
   faBolt,
+  faChartLine,
   faCheckCircle,
   faChevronDown,
   faChevronUp,
@@ -10,7 +11,6 @@ import {
   faSpinner,
   faStar,
   faStarHalfStroke,
-  faChartLine,
   faTimesCircle,
   faWallet
 } from '@fortawesome/free-solid-svg-icons';
@@ -40,8 +40,10 @@ interface ChatMessage {
 const styles = {
   container: 'create-job-container flex flex-col gap-4 w-full mx-auto flex-1',
   glassCard: 'bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden',
-  header: 'px-5 py-4 border-b border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-3',
-  actionButton: 'px-4 py-2.5 rounded-md font-medium text-base transition-colors duration-100 disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20',
+  header:
+    'px-5 py-4 border-b border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-3',
+  actionButton:
+    'px-4 py-2.5 rounded-md font-medium text-base transition-colors duration-100 disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20',
   badge: 'flex items-center gap-1.5 px-2 py-0.5 rounded text-base font-mono'
 } satisfies Record<string, string>;
 
@@ -448,7 +450,9 @@ export const CreateJob = () => {
           );
           completed = true;
         } else {
-          replaceLastSystemStatus(`Agent is swapping your tokens\u2026 (${attempts})`);
+          replaceLastSystemStatus(
+            `Agent is swapping your tokens\u2026 (${attempts})`
+          );
         }
         if (!completed) {
           await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
@@ -602,7 +606,9 @@ export const CreateJob = () => {
               <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
                 Cost
               </span>
-              <span className='text-base font-mono text-zinc-50'>{amount} EGLD</span>
+              <span className='text-base font-mono text-zinc-50'>
+                {amount} EGLD
+              </span>
             </div>
           </div>
           <button
@@ -610,7 +616,9 @@ export const CreateJob = () => {
             className='text-base text-zinc-500 hover:text-zinc-50 transition-colors duration-100 flex items-center gap-1 cursor-pointer'
           >
             Advanced
-            <FontAwesomeIcon icon={showAdvanced ? faChevronUp : faChevronDown} />
+            <FontAwesomeIcon
+              icon={showAdvanced ? faChevronUp : faChevronDown}
+            />
           </button>
         </div>
 
@@ -672,7 +680,9 @@ export const CreateJob = () => {
                   <FontAwesomeIcon icon={faRobot} />
                 </div>
                 <div>
-                  <div className='text-base font-medium text-zinc-50'>Agent Chat</div>
+                  <div className='text-base font-medium text-zinc-50'>
+                    Agent Chat
+                  </div>
                   <div className='text-base font-mono text-zinc-500 truncate max-w-[260px]'>
                     Job: {jobId}
                   </div>
@@ -721,22 +731,40 @@ export const CreateJob = () => {
                   </span>
                   <div className='flex flex-wrap gap-2 mt-4 justify-center'>
                     <button
-                      onClick={() => setPrompt('Start a Token Safari \u2014 explore trending tokens')}
+                      onClick={() =>
+                        setPrompt(
+                          'Start a Token Safari \u2014 explore trending tokens'
+                        )
+                      }
                       className='px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-md hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
                     >
-                      <FontAwesomeIcon icon={faLeaf} className='mr-1.5 text-emerald-400' /> Token Safari
+                      <FontAwesomeIcon
+                        icon={faLeaf}
+                        className='mr-1.5 text-emerald-400'
+                      />{' '}
+                      Token Safari
                     </button>
                     <button
                       onClick={() => setPrompt('What can you do?')}
                       className='px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-md hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
                     >
-                      <FontAwesomeIcon icon={faComments} className='mr-1.5 text-zinc-500' /> What can you do?
+                      <FontAwesomeIcon
+                        icon={faComments}
+                        className='mr-1.5 text-zinc-500'
+                      />{' '}
+                      What can you do?
                     </button>
                     <button
-                      onClick={() => setPrompt('Show me trending tokens on devnet')}
+                      onClick={() =>
+                        setPrompt('Show me trending tokens on devnet')
+                      }
                       className='px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-md hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
                     >
-                      <FontAwesomeIcon icon={faChartLine} className='mr-1.5 text-zinc-500' /> Trending tokens
+                      <FontAwesomeIcon
+                        icon={faChartLine}
+                        className='mr-1.5 text-zinc-500'
+                      />{' '}
+                      Trending tokens
                     </button>
                   </div>
                 </div>
@@ -791,16 +819,14 @@ export const CreateJob = () => {
                         msg.isError
                           ? 'text-red-400'
                           : msg.isStatus
-                            ? 'text-zinc-500'
-                            : 'text-zinc-400'
+                          ? 'text-zinc-500'
+                          : 'text-zinc-400'
                       }`}
                     >
                       {msg.isStatus && (
                         <div className='w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse' />
                       )}
-                      {msg.isError && (
-                        <span>&times;</span>
-                      )}
+                      {msg.isError && <span>&times;</span>}
                       {msg.content}
                     </div>
                   </motion.div>

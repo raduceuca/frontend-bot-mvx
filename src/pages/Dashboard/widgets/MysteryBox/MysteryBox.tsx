@@ -182,7 +182,9 @@ export const MysteryBox = () => {
             className='flex items-center gap-3 text-zinc-400'
           >
             <div className='w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse' />
-            <span className='text-base text-zinc-500'>{statusMessages[status]}</span>
+            <span className='text-base text-zinc-500'>
+              {statusMessages[status]}
+            </span>
           </motion.div>
         )}
 

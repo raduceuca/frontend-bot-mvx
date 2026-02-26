@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { PageNotFound } from 'pages/PageNotFound/PageNotFound';
 import { routes } from 'routes';
@@ -31,6 +32,7 @@ export const App = () => {
           </Layout>
         </BatchTransactionsContextProvider>
       </AxiosInterceptors>
+      <Analytics />
     </Router>
   );
 };
