@@ -8,7 +8,7 @@ import { MenuItemsType, SideMenuPropsType } from './sideMenu.types';
 
 const menuItems: MenuItemsType[] = [
   {
-    title: 'New Job',
+    title: 'New Chat',
     iconSrc: maxAvatar,
     id: ItemsIdentifiersEnum.createJob
   }

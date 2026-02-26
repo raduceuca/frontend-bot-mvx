@@ -109,7 +109,7 @@ export const PreviousSessions = ({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: 0.1 }}
-      className='w-full max-w-xl flex flex-col gap-2'
+      className='w-full flex flex-col gap-2'
     >
       <div className='flex items-center justify-between px-1'>
         <div className='flex items-center gap-2'>
@@ -141,7 +141,7 @@ export const PreviousSessions = ({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.15, delay: index * 0.03 }}
-                className='group flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-900/40 transition-all duration-150'
+                className='group flex items-center justify-between gap-2 xs:gap-3 px-2.5 xs:px-3 py-2.5 rounded-lg border border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-900/40 transition-all duration-150'
               >
                 <div className='flex items-center gap-3 min-w-0'>
                   <span className='text-sm text-zinc-400 whitespace-nowrap'>
@@ -267,7 +267,7 @@ export const PreviousSessions = ({
                       </div>
                     )}
 
-                  <span className='text-sm text-zinc-600 font-mono group-hover:text-zinc-400 transition-colors duration-150'>
+                  <span className='text-sm text-zinc-600 font-mono group-hover:text-zinc-400 transition-colors duration-150 hidden xs:inline'>
                     {truncateJobId(session.jobId)}
                   </span>
                   <a

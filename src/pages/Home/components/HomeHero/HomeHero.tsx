@@ -25,22 +25,24 @@ export const HomeHero = () => (
     />
 
     {/* Hero headline */}
-    <div className='relative z-10 flex flex-col items-center gap-4 px-4 sm:px-6 pt-14 sm:pt-20 pb-10 sm:pb-14 lg:pt-28 lg:pb-16 max-w-4xl mx-auto'>
+    <div className='relative z-10 flex flex-col items-center gap-3 xs:gap-5 px-4 sm:px-6 pt-10 xs:pt-16 sm:pt-24 pb-8 xs:pb-10 sm:pb-14 lg:pt-32 lg:pb-16 max-w-5xl mx-auto'>
       <motion.h1
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
-        className='text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-[-0.03em] text-zinc-50 text-center leading-[1.1]'
+        className='text-2xl xs:text-4xl sm:text-5xl lg:text-7xl font-bold tracking-[-0.04em] text-zinc-50 text-center leading-[1.05]'
       >
-        Give an AI a wallet; see what happens.
+        We gave Max a wallet.
+        <br />
+        What could go wrong?
       </motion.h1>
       <motion.p
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut', delay: 0.1 }}
-        className='text-base sm:text-lg text-zinc-400 text-center max-w-xl'
+        className='text-base xs:text-lg sm:text-xl text-zinc-400 text-center max-w-2xl leading-relaxed'
       >
-        Max trades, swaps, and transacts on MultiversX — you just tell it what to do.
+        Tell Max what you want in plain English. He handles the blockchain.
       </motion.p>
     </div>
 

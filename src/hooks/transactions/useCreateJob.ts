@@ -13,8 +13,8 @@ import {
 
 const CREATE_JOB_TRANSACTION_INFO = {
   processingMessage: 'Max is initializing\u2026',
-  errorMessage: 'Couldn\u2019t start the job',
-  successMessage: 'Job started'
+  errorMessage: 'Couldn\u2019t start the chat',
+  successMessage: 'Chat started'
 };
 
 export interface PrepareResponse {

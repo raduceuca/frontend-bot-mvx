@@ -78,7 +78,7 @@ export const TransactionActivityBar = ({
     <div className='border-b border-zinc-800/50'>
       <button
         onClick={() => setExpanded((prev) => !prev)}
-        className='w-full px-5 py-2 flex items-center justify-between text-sm cursor-pointer hover:bg-zinc-800/30 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 focus-visible:ring-inset'
+        className='w-full px-3 xs:px-5 py-2 flex items-center justify-between text-sm cursor-pointer hover:bg-zinc-800/30 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 focus-visible:ring-inset'
         aria-expanded={expanded}
         aria-controls='tx-activity-list'
       >
@@ -112,11 +112,11 @@ export const TransactionActivityBar = ({
             transition={{ duration: 0.15 }}
             className='overflow-hidden'
           >
-            <div className='px-5 pb-3 flex flex-col gap-1.5'>
+            <div className='px-3 xs:px-5 pb-3 flex flex-col gap-1.5'>
               {transactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className='flex items-center gap-3 py-1.5 px-3 rounded-lg bg-zinc-800/30 text-sm'
+                  className='flex items-center gap-2 xs:gap-3 py-1.5 px-2 xs:px-3 rounded-lg bg-zinc-800/30 text-sm'
                 >
                   {statusIcon(tx.status)}
 
@@ -129,7 +129,7 @@ export const TransactionActivityBar = ({
                     </span>
                   </div>
 
-                  <span className='text-sm font-mono text-zinc-500 whitespace-nowrap'>
+                  <span className='text-sm font-mono text-zinc-500 whitespace-nowrap hidden xs:inline'>
                     {tx.amount} {tx.token}
                   </span>
 

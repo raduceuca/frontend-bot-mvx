@@ -1,5 +1,11 @@
+export { ChatHeader } from './ChatHeader';
+export { ChatInputBar } from './ChatInputBar';
+export { ChatMessages } from './ChatMessages';
+export { FaucetModal } from './FaucetModal';
 export { FeedbackModal } from './FeedbackModal';
 export { PreviousSessions, RatingConfirmModal } from './PreviousSessions';
+export { QuickActions } from './QuickActions';
 export { StarRating } from './StarRating';
 export { TransactionActivityBar } from './TransactionActivityBar';
 export { TransactionToast } from './TransactionToast';
+export { WalletBar } from './WalletBar';

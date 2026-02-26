@@ -32,7 +32,7 @@ export const RatingConfirmModal = ({
 
   return (
     <div
-      className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 overflow-y-auto'
+      className='fixed inset-0 z-50 flex items-end xs:items-center justify-center p-0 xs:p-4 bg-zinc-950/60 overflow-y-auto'
       role='dialog'
       aria-modal='true'
       aria-labelledby='rate-session-title'
@@ -44,7 +44,7 @@ export const RatingConfirmModal = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15 }}
-        className='bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full p-6 flex flex-col gap-4'
+        className='bg-zinc-900 border border-zinc-800 rounded-t-xl xs:rounded-xl max-w-sm w-full p-5 xs:p-6 flex flex-col gap-4'
         onClick={(e) => e.stopPropagation()}
       >
         <h3
@@ -54,8 +54,8 @@ export const RatingConfirmModal = ({
           Rate this session?
         </h3>
         <p className='text-base text-zinc-500 leading-relaxed'>
-          Job {truncateJobId(jobId)} &mdash; your rating goes on-chain and
-          helps improve the agent.
+          Job {truncateJobId(jobId)} &mdash; your rating goes on-chain and helps
+          improve the agent.
         </p>
 
         {/* Star display (read-only) */}

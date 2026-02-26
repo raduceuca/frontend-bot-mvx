@@ -1,20 +1,12 @@
 import { useCallback, useState } from 'react';
 import { PreviousSession } from 'hooks/useGetPreviousSessions';
-import { TxStatus } from '../createJob.types';
+import { TrackTransactionParams } from '../createJob.types';
 import { isUserCancellation } from '../createJob.utils';
 
 interface SessionRatingState {
   jobId: string;
   agentNonce: number;
   rating: number;
-}
-
-interface TrackTransactionParams {
-  txHash: string;
-  label: string;
-  amount: string;
-  token: string;
-  status?: TxStatus;
 }
 
 interface UseSessionRatingParams {

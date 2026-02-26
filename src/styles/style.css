@@ -56,6 +56,21 @@
 
 body {
   background-color: var(--bg-0);
+  overflow-x: hidden;
+}
+
+/* Base font size — ensure 16px minimum everywhere */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Prevent iOS auto-zoom on input focus */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: 16px;
+  }
 }
 
 /*
