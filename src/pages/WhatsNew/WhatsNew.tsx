@@ -7,7 +7,11 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMemo } from 'react';
-import { CHANGELOG_ENTRIES, ChangelogEntry, ChangelogTag } from 'data/changelog';
+import {
+  CHANGELOG_ENTRIES,
+  ChangelogEntry,
+  ChangelogTag
+} from 'data/changelog';
 
 interface TagConfig {
   label: string;
@@ -76,21 +80,21 @@ const groupByMonth = (
 
 // prettier-ignore
 const styles = {
-  container: 'mx-auto w-full max-w-4xl px-4 sm:px-6 py-12',
-  header: 'mb-10',
-  title: 'text-2xl font-bold text-primary',
+  container: 'mx-auto w-full max-w-4xl px-4 sm:px-6 py-8 xs:py-12',
+  header: 'mb-6 xs:mb-10',
+  title: 'text-xl xs:text-2xl font-bold text-primary',
   subtitle: 'mt-2 text-sm text-secondary',
-  monthLabel: 'mb-4 mt-8 first:mt-0 text-xs font-medium uppercase tracking-wider text-zinc-500',
+  monthLabel: 'mb-4 mt-8 first:mt-0 text-sm font-medium uppercase tracking-wider text-zinc-500',
   timeline: 'relative ml-3 border-l border-zinc-800',
-  entry: 'relative pl-8 pb-8 last:pb-0',
+  entry: 'relative pl-6 xs:pl-8 pb-6 xs:pb-8 last:pb-0',
   dot: 'absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full ring-4 ring-zinc-950',
-  card: 'rounded-lg border border-zinc-800/60 bg-zinc-900/40 px-4 py-3',
+  card: 'rounded-lg border border-zinc-800/60 bg-zinc-900/40 px-3 xs:px-4 py-2.5 xs:py-3',
   cardHeader: 'flex flex-wrap items-center gap-2',
-  badge: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-  badgeIcon: 'text-[10px]',
-  date: 'text-xs tabular-nums text-zinc-500',
-  cardTitle: 'mt-1.5 text-sm font-medium text-primary',
-  cardDescription: 'mt-1 text-sm leading-relaxed text-secondary text-pretty'
+  badge: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-medium',
+  badgeIcon: 'text-sm',
+  date: 'text-sm tabular-nums text-zinc-500',
+  cardTitle: 'mt-1.5 text-base font-medium text-primary',
+  cardDescription: 'mt-1 text-base leading-relaxed text-secondary text-pretty'
 } satisfies Record<string, string>;
 
 export const WhatsNew = () => {

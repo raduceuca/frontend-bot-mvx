@@ -48,7 +48,7 @@ const ToastItem = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border text-sm ${
+      className={`flex items-center gap-2 xs:gap-3 px-3 xs:px-4 py-2.5 rounded-lg border text-sm ${
         isSuccess
           ? 'bg-success/5 border-success/20'
           : 'bg-error/5 border-error/20'
@@ -59,14 +59,16 @@ const ToastItem = ({
         className={isSuccess ? 'text-success text-sm' : 'text-error text-sm'}
       />
 
-      <div className='flex-1 min-w-0'>
+      <div className='flex-1 min-w-0 truncate'>
         <span className={isSuccess ? 'text-success' : 'text-error'}>
           {isSuccess ? 'Confirmed' : 'Failed'}
         </span>
-        <span className='text-zinc-500 mx-1.5'>&middot;</span>
+        <span className='text-zinc-500 mx-1 xs:mx-1.5'>&middot;</span>
         <span className='text-zinc-400'>{toast.label}</span>
-        <span className='text-zinc-600 mx-1.5'>&middot;</span>
-        <span className='text-zinc-500 font-mono'>
+        <span className='text-zinc-600 mx-1 xs:mx-1.5 hidden xs:inline'>
+          &middot;
+        </span>
+        <span className='text-zinc-500 font-mono hidden xs:inline'>
           {toast.amount} {toast.token}
         </span>
       </div>

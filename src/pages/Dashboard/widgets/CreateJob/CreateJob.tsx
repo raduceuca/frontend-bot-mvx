@@ -1,42 +1,22 @@
-import {
-  faArrowUpRightFromSquare,
-  faBell,
-  faBolt,
-  faCheckCircle,
-  faChevronDown,
-  faChevronUp,
-  faClone,
-  faCoins,
-  faExternalLink,
-  faPaperPlane,
-  faPowerOff,
-  faSpinner,
-  faTimesCircle,
-  faWallet
-} from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import axios from 'axios';
 import { motion } from 'motion/react';
 import { MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
-import Markdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import maxAvatar from 'assets/img/max-avatar.png';
 import { TASK_SERVICE_API_URL } from 'config';
 import { environment } from 'config';
+import { useGetPreviousSessions } from 'hooks';
 import {
   useCreateJob,
   useGiveFeedback,
   useSendTokensToBot,
   useSubmitProof
 } from 'hooks/transactions';
-import { useGetPreviousSessions } from 'hooks';
 import {
   ACCOUNTS_ENDPOINT,
   getAccountProvider,
   NotificationsFeedManager,
-  parseAmount,
   useGetAccount,
   useGetLoginInfo,
   useGetNetworkConfig
@@ -44,17 +24,29 @@ import {
 import { EnvironmentsEnum } from 'lib/sdkDapp/sdkDapp.types';
 import { RouteNamesEnum } from 'localConstants';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
-import { Faucet } from 'pages/Dashboard/widgets/Faucet/Faucet';
 import {
+  ChatHeader,
+  ChatInputBar,
+  ChatMessages,
+  FaucetModal,
   FeedbackModal,
   PreviousSessions,
+  QuickActions,
   RatingConfirmModal,
-  TransactionActivityBar,
-  TransactionToast
+  WalletBar
 } from './components';
-import { TrackedTransaction, TxStatus } from './createJob.types';
-import { isUserCancellation } from './createJob.utils';
-import { useSessionRating } from './hooks';
+import { styles } from './createJob.styles';
+import { JobPhase } from './createJob.types';
+import {
+  clearPersistedJob,
+  loadPersistedJob,
+  useChatMessages,
+  useFeedback,
+  useJobActions,
+  useJobPersistence,
+  useSessionRating,
+  useTransactionTracking
+} from './hooks';
 
 const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
 
@@ -216,6 +208,10 @@ IMPORTANT: This feature is called "Mystery Box" in our UI. Always refer to it as
 5. The user at ${userAddress} must receive the swapped tokens.
 6. In your final report you MUST include: (a) your reasoning for choosing each output token (why you picked them), and (b) a clear line telling the user to check their wallet for their newly swapped tokens. Report which tokens and amounts were sent.`;
 
+// ── Constants ─────────────────────────────────────────────────────
+
+const LOW_BALANCE_THRESHOLD = BigInt('50000000000000000'); // 0.05 EGLD
+
 const isBalanceLow = (balance: string) => {
   try {
     return BigInt(balance) < LOW_BALANCE_THRESHOLD;
@@ -224,56 +220,33 @@ const isBalanceLow = (balance: string) => {
   }
 };
 
-// ── Component ──────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────
 
 export const CreateJob = () => {
-  // Config
+  // ── Config state ──────────────────────────────────────────────
   const [agentNonce, setAgentNonce] = useState(110);
   const [serviceId, setServiceId] = useState('1');
   const [token] = useState('EGLD');
   const [nonce] = useState(0);
   const [amount, setAmount] = useState('0.05');
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Core state machine
+  // ── Core state machine ────────────────────────────────────────
   const [phase, setPhase] = useState<JobPhase>('idle');
   const [jobId, setJobId] = useState<string | null>(null);
   const [hasSentTokens, setHasSentTokens] = useState(false);
 
-  // Chat
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // ── Chat ──────────────────────────────────────────────────────
   const [prompt, setPrompt] = useState('');
 
-  // Faucet panel
+  // ── UI toggles ────────────────────────────────────────────────
   const [showFaucetPanel, setShowFaucetPanel] = useState(false);
+  const [addressCopied, setAddressCopied] = useState(false);
 
-  // Feedback
-  const [pendingFeedback, setPendingFeedback] = useState<{
-    jobId: string;
-    agentNonce: number;
-  } | null>(null);
-  const [feedbackRating, setFeedbackRating] = useState(0);
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-  const [feedbackError, setFeedbackError] = useState<string | null>(null);
-
-  // Transaction tracking
-  const [trackedTransactions, setTrackedTransactions] = useState<
-    TrackedTransaction[]
-  >([]);
-  const [toasts, setToasts] = useState<
-    Array<{
-      id: string;
-      txHash: string;
-      label: string;
-      amount: string;
-      token: string;
-      status: 'confirmed' | 'failed';
-    }>
-  >([]);
-
+  // ── Refs ──────────────────────────────────────────────────────
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // ── SDK hooks ─────────────────────────────────────────────────
   const { address: userAddress, balance } = useGetAccount();
   const { createJob } = useCreateJob();
   const { sendTokensToBot } = useSendTokensToBot();
@@ -290,8 +263,125 @@ export const CreateJob = () => {
   } = useGetPreviousSessions(agentNonce, userAddress);
   const walletProvider = getAccountProvider();
   const walletNavigate = useNavigate();
-  const [addressCopied, setAddressCopied] = useState(false);
 
+  // ── Derived ───────────────────────────────────────────────────
+  const isBusy =
+    phase === 'creating' ||
+    phase === 'prompting' ||
+    phase === 'sending_tokens' ||
+    phase === 'swapping';
+
+  const isDevnet = environment === EnvironmentsEnum.devnet;
+  const needsFunds = isBalanceLow(balance);
+
+  // ── Custom hooks ──────────────────────────────────────────────
+  const chat = useChatMessages();
+  const txTracking = useTransactionTracking();
+
+  const resetAll = useCallback(() => {
+    clearPersistedJob();
+    setJobId(null);
+    setPhase('idle');
+    chat.clearMessages();
+    setPrompt('');
+    setAgentNonce(110);
+    setServiceId('1');
+    setAmount('0.05');
+    setHasSentTokens(false);
+    txTracking.clearTransactions();
+  }, [chat, txTracking]);
+
+  const feedback = useFeedback({
+    giveFeedback,
+    trackTransaction: txTracking.trackTransaction,
+    onClose: resetAll
+  });
+
+  const {
+    sessionRating,
+    isSubmittingSessionRating,
+    sessionRatingError,
+    finishingJobId,
+    handleFinishSession,
+    handleRateSession,
+    handleConfirmSessionRating,
+    handleCancelSessionRating
+  } = useSessionRating({
+    giveFeedback,
+    submitProof,
+    previousSessions,
+    trackTransaction: txTracking.trackTransaction,
+    refetchSessions
+  });
+
+  const jobActions = useJobActions({
+    jobId,
+    agentNonce,
+    serviceId,
+    token,
+    nonce,
+    amount,
+    userAddress,
+    hasSentTokens,
+    nativeAuthToken: tokenLogin?.nativeAuthToken,
+    chat,
+    setPhase,
+    setJobId,
+    setHasSentTokens,
+    trackTransaction: txTracking.trackTransaction,
+    refetchSessions,
+    createJob,
+    sendTokensToBot
+  });
+
+  // ── Persistence ───────────────────────────────────────────────
+  useEffect(() => {
+    const persisted = loadPersistedJob();
+    if (persisted?.jobId) {
+      setJobId(persisted.jobId);
+      setAgentNonce(persisted.agentNonce);
+      setHasSentTokens(persisted.hasSentTokens ?? false);
+      setPhase('ready');
+      if (persisted.messages?.length) {
+        chat.restoreMessages(persisted.messages);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useJobPersistence({
+    jobId,
+    agentNonce,
+    messages: chat.messages,
+    hasSentTokens
+  });
+
+  // ── Auto-scroll chat ──────────────────────────────────────────
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+  }, [chat.messages, phase]);
+
+  // ── Auto-resize textarea ──────────────────────────────────────
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [prompt]);
+
+  // ── Escape key for faucet panel ───────────────────────────────
+  useEffect(() => {
+    if (!showFaucetPanel) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowFaucetPanel(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showFaucetPanel]);
+
+  // ── Wallet handlers ───────────────────────────────────────────
   const handleLogout = useCallback(
     async (event: MouseEvent) => {
       event.preventDefault();
@@ -780,380 +870,96 @@ export const CreateJob = () => {
     }
   };
 
+  // ── Job action wrappers ───────────────────────────────────────
   const handleFinishJob = () => {
     if (!jobId) return;
-    setPendingFeedback({ jobId, agentNonce });
-    setFeedbackRating(0);
-    setFeedbackError(null);
+    feedback.openFeedback(jobId, agentNonce);
     setPhase('rating');
   };
 
-  const resetAll = () => {
-    clearPersistedJob();
-    setJobId(null);
-    setPhase('idle');
-    setMessages([]);
-    setPrompt('');
-    setAgentNonce(110);
-    setServiceId('1');
-    setAmount('0.05');
-    setHasSentTokens(false);
-    setTrackedTransactions([]);
-    setToasts([]);
-  };
-
-  const handleCloseFeedbackModal = () => {
-    resetAll();
-    setPendingFeedback(null);
-    setFeedbackRating(0);
-    setFeedbackError(null);
-  };
-
-  const handleSubmitFeedback = async () => {
-    if (!pendingFeedback || feedbackRating <= 0) return;
-    setIsSubmittingFeedback(true);
-    setFeedbackError(null);
-    try {
-      const { txHash } = await giveFeedback(
-        pendingFeedback.jobId,
-        pendingFeedback.agentNonce,
-        feedbackRating
-      );
-      if (txHash) {
-        trackTransaction({
-          txHash,
-          label: `Rating: ${feedbackRating}/100`,
-          amount: '0',
-          token: 'xEGLD',
-          status: 'confirmed'
-        });
-      }
-      handleCloseFeedbackModal();
-    } catch (err: unknown) {
-      if (isUserCancellation(err)) {
-        setFeedbackError('Signing cancelled. Your rating was not submitted.');
-      } else {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Couldn\u2019t submit your rating. Try again?';
-        setFeedbackError(message);
-      }
-    } finally {
-      setIsSubmittingFeedback(false);
+  const handleSendPrompt = () => {
+    if (!isBusy && prompt.trim()) {
+      const text = prompt.trim();
+      setPrompt('');
+      textareaRef.current?.focus();
+      jobActions.handleSendPrompt(text);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (!isBusy && prompt.trim()) handleSendPrompt();
+      handleSendPrompt();
     }
   };
 
-  // Auto-resize textarea as content grows
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  }, [prompt]);
+  const handleCreateJob = () => {
+    chat.clearMessages();
+    jobActions.handleCreateJob();
+  };
 
-  // Escape key handler for faucet panel
-  useEffect(() => {
-    if (!showFaucetPanel) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowFaucetPanel(false);
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [showFaucetPanel]);
-
-  // ── Wallet Bar ───────────────────────────────────────────────────
-
-  const walletBtn =
-    'flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-300 transition-colors duration-150 cursor-pointer rounded-md px-2 py-1.5 -mx-2 hover:bg-zinc-800/50';
-
-  const renderWalletBar = () => (
-    <div className='px-4 sm:px-5 pb-3 sm:pb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-zinc-800/50 pt-2.5 sm:pt-3'>
-      <div className='flex items-center gap-1.5 min-w-0'>
-        <span className='text-sm font-mono text-zinc-500 truncate min-w-0 max-w-[120px] sm:max-w-none'>
-          {truncateAddress(userAddress)}
-        </span>
-        <button
-          onClick={handleCopyAddress}
-          className={`${walletBtn} whitespace-nowrap ${
-            addressCopied ? 'text-teal hover:text-teal' : ''
-          }`}
-        >
-          <FontAwesomeIcon icon={faClone} className='text-sm' />
-          <span>{addressCopied ? 'Copied' : 'Copy'}</span>
-        </button>
-        <button
-          onClick={handleOpenExplorer}
-          className={`${walletBtn} whitespace-nowrap`}
-          aria-label='Explorer'
-        >
-          <FontAwesomeIcon icon={faExternalLink} className='text-sm' />
-          <span className='hidden sm:inline'>Explorer</span>
-        </button>
-      </div>
-
-      <div className='flex items-center gap-1.5'>
-        <button
-          onClick={handleNotifications}
-          className={walletBtn}
-          aria-label='Notifications'
-        >
-          <FontAwesomeIcon icon={faBell} className='text-sm' />
-        </button>
-        <span className='text-sm font-mono text-zinc-500 bg-zinc-800/60 px-2 py-0.5 rounded-md capitalize'>
-          {network.id}
-        </span>
-        <button
-          onClick={handleLogout}
-          className={`${walletBtn} hover:text-error/80 hover:bg-error/5`}
-          aria-label='Disconnect wallet'
-        >
-          <FontAwesomeIcon icon={faPowerOff} className='text-sm' />
-        </button>
-      </div>
-    </div>
-  );
-
-  // ── Quick Actions ────────────────────────────────────────────────
-
-  const actionsDisabled = !isLoggedIn || !jobId;
-
-  const chipClass =
-    'px-3 py-1.5 text-sm text-zinc-400 bg-zinc-800/50 border border-zinc-700/50 rounded-full hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-600 transition-colors duration-150 cursor-pointer disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 whitespace-nowrap shrink-0';
-
-  const renderQuickActions = () => (
-    <div
-      className='relative px-4 sm:px-5 pb-1.5'
-      style={{
-        maskImage:
-          'linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent)',
-        WebkitMaskImage:
-          'linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent)'
-      }}
-    >
-      <div className='flex gap-1.5 overflow-x-auto scrollbar-none'>
-        {/* 1. Mystery Box — primary CTA */}
-        <button
-          onClick={() => handleMysteryBox('1')}
-          disabled={!isLoggedIn || !jobId || isBusy || hasSentTokens}
-          className={`px-3 py-1.5 text-sm border rounded-full transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 ${
-            !isLoggedIn || !jobId
-              ? 'bg-teal/5 text-teal/40 border-teal/10 cursor-default'
-              : 'bg-teal/10 text-teal border-teal/20 hover:bg-teal/20 hover:border-teal/30 cursor-pointer disabled:opacity-40'
-          }`}
-        >
-          <img
-            src={maxAvatar}
-            alt=''
-            className='w-3 h-3 inline-block mr-1 -mt-0.5 rounded-sm'
-          />
-          Mystery Box &middot; 1 xEGLD
-        </button>
-
-        {/* 2. Faucet — devnet only */}
-        {isDevnet && (
-          <button
-            onClick={() => setShowFaucetPanel(true)}
-            disabled={!isLoggedIn}
-            className={`${chipClass} ${
-              !isLoggedIn
-                ? 'opacity-40 cursor-default'
-                : needsFunds
-                ? 'bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 hover:border-warning/30'
-                : ''
-            }`}
-          >
-            <FontAwesomeIcon
-              icon={faCoins}
-              className='mr-1 text-warning text-sm'
-            />
-            Get 5 xEGLD
-          </button>
-        )}
-
-        {/* 3. Fun prompts */}
-        <button
-          onClick={() =>
-            setPrompt('Who\u2019s the best user on devnet? Wrong answers only.')
-          }
-          disabled={actionsDisabled || isBusy}
-          className={`${chipClass} ${
-            actionsDisabled ? 'opacity-40 cursor-default' : ''
-          }`}
-        >
-          Best devnet user?
-        </button>
-
-        <button
-          onClick={() =>
-            setPrompt('Pick a random token and convince me to ape in.')
-          }
-          disabled={actionsDisabled || isBusy}
-          className={`${chipClass} ${
-            actionsDisabled ? 'opacity-40 cursor-default' : ''
-          }`}
-        >
-          Shill me something
-        </button>
-
-        <button
-          onClick={() =>
-            setPrompt('What would you do with 100 xEGLD and zero morals?')
-          }
-          disabled={actionsDisabled || isBusy}
-          className={`${chipClass} ${
-            actionsDisabled ? 'opacity-40 cursor-default' : ''
-          }`}
-        >
-          100 xEGLD, zero morals
-        </button>
-
-        <button
-          onClick={() => setPrompt('Rate my wallet. Be brutally honest.')}
-          disabled={actionsDisabled || isBusy}
-          className={`${chipClass} ${
-            actionsDisabled ? 'opacity-40 cursor-default' : ''
-          }`}
-        >
-          Rate my wallet
-        </button>
-
-        <button
-          onClick={() =>
-            setPrompt('Write a haiku about gas fees on MultiversX.')
-          }
-          disabled={actionsDisabled || isBusy}
-          className={`${chipClass} ${
-            actionsDisabled ? 'opacity-40 cursor-default' : ''
-          }`}
-        >
-          Haiku about gas fees
-        </button>
-
-        <button
-          onClick={() =>
-            setPrompt(
-              'If every token on MultiversX was a person at a party, describe the vibe.'
-            )
-          }
-          disabled={actionsDisabled || isBusy}
-          className={`${chipClass} ${
-            actionsDisabled ? 'opacity-40 cursor-default' : ''
-          }`}
-        >
-          Tokens at a party
-        </button>
-
-        <button
-          onClick={() =>
-            setPrompt('Explain what you do like I\u2019m a golden retriever.')
-          }
-          disabled={actionsDisabled || isBusy}
-          className={`${chipClass} ${
-            actionsDisabled ? 'opacity-40 cursor-default' : ''
-          }`}
-        >
-          Explain like I&apos;m a golden retriever
-        </button>
-
-        <button
-          onClick={() =>
-            setPrompt(
-              'Give me a mass-adoption conspiracy theory that sounds almost plausible.'
-            )
-          }
-          disabled={actionsDisabled || isBusy}
-          className={`${chipClass} ${
-            actionsDisabled ? 'opacity-40 cursor-default' : ''
-          }`}
-        >
-          Crypto conspiracy theory
-        </button>
-      </div>
-    </div>
-  );
-
-  // ── Render ───────────────────────────────────────────────────────
-
+  // ── Render ────────────────────────────────────────────────────
   return (
     <div id={ItemsIdentifiersEnum.createJob} className={styles.container}>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15 }}
-        className={`${styles.card} flex flex-col min-h-[360px] sm:min-h-[480px]`}
+        className={`${styles.card} flex flex-col min-h-[320px] xs:min-h-[360px] sm:min-h-[480px]`}
       >
-        {/* ── Chat header ── */}
-        <div className='px-4 sm:px-5 py-3 border-b border-zinc-800 flex items-center justify-between'>
-          <div className='flex items-center gap-2.5'>
-            <div className='relative'>
-              <img src={maxAvatar} alt='Max' className='w-8 h-8 rounded-lg' />
-              {jobId && (
-                <span
-                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-zinc-900 ${
-                    isBusy ? 'bg-warning animate-pulse' : 'bg-success'
-                  }`}
-                  aria-hidden='true'
-                />
-              )}
-            </div>
-            <div className='flex items-center gap-2'>
-              <span className='text-base font-medium text-zinc-50'>Max</span>
-              {jobId && !isBusy && (
-                <span className='text-sm font-mono text-success/80 bg-success/10 border border-success/15 px-1.5 py-0.5 rounded-md hidden sm:flex items-center gap-1'>
-                  <span className='w-1 h-1 rounded-full bg-success' />
-                  Active Job
-                </span>
-              )}
-              {isBusy && (
-                <div
-                  role='status'
-                  aria-live='polite'
-                  className={`${styles.badge} bg-warning/10 text-warning border border-warning/20 text-sm`}
-                >
-                  <FontAwesomeIcon icon={faSpinner} spin className='text-sm' />
-                  {phase === 'creating' && 'Starting'}
-                  {phase === 'prompting' && 'Thinking'}
-                  {phase === 'sending_tokens' && 'Sending'}
-                  {phase === 'swapping' && 'Crawling'}
-                </div>
-              )}
-            </div>
-          </div>
+        <ChatHeader
+          jobId={jobId}
+          isBusy={isBusy}
+          phase={phase}
+          isLoggedIn={isLoggedIn}
+          networkId={network.id}
+          onFinishJob={handleFinishJob}
+        />
 
-          <div className='flex items-center gap-2'>
-            {jobId && (
-              <button
-                disabled={isBusy}
-                onClick={handleFinishJob}
-                className={`${styles.btn} bg-zinc-800 hover:bg-zinc-700 text-zinc-50 border border-zinc-700`}
-              >
-                <div className='flex items-center justify-center gap-2'>
-                  <FontAwesomeIcon icon={faCheckCircle} /> Finish
-                </div>
-              </button>
-            )}
+        <ChatMessages
+          isLoggedIn={isLoggedIn}
+          jobId={jobId}
+          phase={phase}
+          isBusy={isBusy}
+          messages={chat.messages}
+          amount={amount}
+          isDevnet={isDevnet}
+          needsFunds={needsFunds}
+          toasts={txTracking.toasts}
+          trackedTransactions={txTracking.trackedTransactions}
+          explorerAddress={network.explorerAddress}
+          previousSessionsTotal={previousSessionsTotal}
+          onConnect={handleConnect}
+          onCreateJob={handleCreateJob}
+          onShowFaucet={() => setShowFaucetPanel(true)}
+          onDismissToast={txTracking.dismissToast}
+          chatContainerRef={chatContainerRef}
+        />
 
-            {!isLoggedIn && (
-              <div className='text-sm font-mono text-zinc-500 bg-zinc-800/60 px-2 py-0.5 rounded-md capitalize'>
-                {network.id}
-              </div>
-            )}
-          </div>
-        </div>
+        <QuickActions
+          isLoggedIn={isLoggedIn}
+          jobId={jobId}
+          isBusy={isBusy}
+          isDevnet={isDevnet}
+          hasSentTokens={hasSentTokens}
+          variant={isLoggedIn && jobId ? 'inline' : 'placeholder'}
+          onMysteryBox={jobActions.handleMysteryBox}
+          onSetPrompt={setPrompt}
+        />
 
-        {/* ── Transaction Activity Bar ── */}
-        {trackedTransactions.length > 0 && (
-          <TransactionActivityBar
-            transactions={trackedTransactions}
-            explorerAddress={network.explorerAddress}
+        {isLoggedIn && jobId && (
+          <ChatInputBar
+            isLoggedIn={isLoggedIn}
+            jobId={jobId}
+            isBusy={isBusy}
+            prompt={prompt}
+            phase={phase}
+            textareaRef={textareaRef}
+            onPromptChange={setPrompt}
+            onSendPrompt={handleSendPrompt}
+            onCreateJob={handleCreateJob}
+            onConnect={handleConnect}
+            onKeyDown={handleKeyDown}
           />
         )}
 
@@ -1541,64 +1347,53 @@ export const CreateJob = () => {
 
         {/* ── Wallet bar (logged in only) ── */}
         {isLoggedIn && renderWalletBar()}
+        {isLoggedIn && (
+          <WalletBar
+            userAddress={userAddress}
+            addressCopied={addressCopied}
+            networkId={network.id}
+            isDevnet={isDevnet}
+            needsFunds={needsFunds}
+            onCopyAddress={handleCopyAddress}
+            onOpenExplorer={handleOpenExplorer}
+            onShowFaucet={() => setShowFaucetPanel(true)}
+            onNotifications={handleNotifications}
+            onLogout={handleLogout}
+          />
+        )}
       </motion.div>
 
-      {/* Faucet panel */}
-      {showFaucetPanel && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 overflow-y-auto'
-          role='dialog'
-          aria-modal='true'
-          aria-labelledby='faucet-title'
-          onClick={() => setShowFaucetPanel(false)}
-        >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.15 }}
-            className='bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-6 flex flex-col gap-5'
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <h3
-                id='faucet-title'
-                className='text-lg font-semibold text-zinc-50 tracking-tight'
-              >
-                Devnet Faucet
-              </h3>
-              <p className='text-base text-zinc-400 mt-2 leading-relaxed'>
-                Get 5 xEGLD — test tokens with no real value. Use them to start
-                jobs, try a Mystery Box, and do everything Max can do. One
-                request every 24 hours.
-              </p>
-            </div>
-
-            <Faucet />
-
-            <button
-              type='button'
-              onClick={() => setShowFaucetPanel(false)}
-              className='text-base text-zinc-500 hover:text-zinc-300 transition-colors duration-150 cursor-pointer self-center rounded-lg px-4 py-2.5 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
-            >
-              Close
-            </button>
-          </motion.div>
+      {isLoggedIn && previousSessionsTotal > 0 && (
+        <div id='previous-sessions' className='pt-6'>
+          <PreviousSessions
+            sessions={previousSessions}
+            total={previousSessionsTotal}
+            isLoading={sessionsLoading}
+            error={sessionsError}
+            explorerAddress={network.explorerAddress}
+            onRetry={refetchSessions}
+            onRateSession={handleRateSession}
+            onFinishSession={handleFinishSession}
+            finishingJobId={finishingJobId}
+          />
         </div>
       )}
 
-      {/* Feedback modal */}
-      {phase === 'rating' && pendingFeedback && (
+      {showFaucetPanel && (
+        <FaucetModal onClose={() => setShowFaucetPanel(false)} />
+      )}
+
+      {phase === 'rating' && feedback.pendingFeedback && (
         <FeedbackModal
-          feedbackRating={feedbackRating}
-          isSubmitting={isSubmittingFeedback}
-          error={feedbackError}
-          onRatingChange={setFeedbackRating}
-          onSubmit={handleSubmitFeedback}
-          onClose={handleCloseFeedbackModal}
+          feedbackRating={feedback.feedbackRating}
+          isSubmitting={feedback.isSubmittingFeedback}
+          error={feedback.feedbackError}
+          onRatingChange={feedback.setFeedbackRating}
+          onSubmit={feedback.submitFeedback}
+          onClose={feedback.closeFeedback}
         />
       )}
 
-      {/* Session rating confirmation modal */}
       {sessionRating && (
         <RatingConfirmModal
           jobId={sessionRating.jobId}

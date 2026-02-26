@@ -6,7 +6,7 @@ import { CreateJob } from './widgets';
 
 const widgets = [
   {
-    title: 'New Job',
+    title: 'New Chat',
     widget: CreateJob,
     description: 'Give Max something to do',
     reference: '/create-job'

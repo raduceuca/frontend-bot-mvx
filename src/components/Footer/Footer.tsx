@@ -7,7 +7,7 @@ import { version } from '../../../package.json';
 
 // prettier-ignore
 const styles = {
-  footer: 'footer mx-auto w-full max-w-4xl px-4 sm:px-6 py-6 border-t border-zinc-800/50',
+  footer: 'footer mx-auto w-full max-w-4xl px-4 sm:px-6 py-4 xs:py-6 border-t border-zinc-800/50',
   footerContainer: 'footer-container flex flex-col sm:flex-row gap-2 sm:gap-0 font-medium items-center justify-between text-sm text-zinc-500',
   footerLinks: 'footer-links flex items-center gap-2',
   footerDisclaimerLink: 'footer-disclaimer-link cursor-pointer hover:underline hover:text-zinc-300 transition-colors duration-150 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 px-2 py-1.5 -mx-2',
@@ -36,9 +36,7 @@ export const Footer = () => {
         <div className={styles.footerDescription}>
           <span>&copy; MultiversX {currentYear}</span>
           <span className='text-zinc-600 hidden sm:inline'>&middot;</span>
-          <span className={styles.footerDescriptionNetwork}>
-            {network.id}
-          </span>
+          <span className={styles.footerDescriptionNetwork}>{network.id}</span>
           <span>{version}</span>
         </div>
 

@@ -22,11 +22,11 @@ export const useSubmitProof = () => {
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         throw new Error(
-          err.response?.data?.message || err.message || 'Failed to finish job'
+          err.response?.data?.message || err.message || 'Failed to finish chat'
         );
       }
       throw new Error(
-        err instanceof Error ? err.message : 'Failed to finish job'
+        err instanceof Error ? err.message : 'Failed to finish chat'
       );
     }
   };

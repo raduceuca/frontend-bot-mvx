@@ -3,6 +3,11 @@ export const truncateJobId = (jobId: string): string => {
   return `${jobId.slice(0, 6)}...${jobId.slice(-4)}`;
 };
 
+export const truncateAddress = (address: string): string => {
+  if (address.length <= 16) return address;
+  return `${address.slice(0, 8)}...${address.slice(-6)}`;
+};
+
 const CANCELLATION_SUBSTRINGS = [
   'Transaction canceled',
   'Signing canceled',
