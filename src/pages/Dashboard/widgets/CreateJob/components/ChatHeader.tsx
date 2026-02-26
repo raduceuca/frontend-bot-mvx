@@ -9,7 +9,7 @@ import { styles } from '../createJob.styles';
 import { JobPhase } from '../createJob.types';
 import { NetworkBadge } from './NetworkBadge';
 
-const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
+const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/111';
 
 interface ChatHeaderProps {
   jobId: string | null;

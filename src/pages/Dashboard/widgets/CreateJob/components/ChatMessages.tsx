@@ -21,7 +21,7 @@ import {
 import { TransactionActivityBar } from './TransactionActivityBar';
 import { TransactionToast } from './TransactionToast';
 
-const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
+const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/111';
 
 /** Normalize agent markdown for display: paragraph breaks, table newlines, step headers. */
 const normalizeAgentMarkdown = (raw: string): string => {

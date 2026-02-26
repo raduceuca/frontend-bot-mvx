@@ -60,7 +60,7 @@ const isBalanceLow = (balance: string) => {
 
 export const CreateJob = () => {
   // ── Config state ────────────────────────────────────────────────
-  const [agentNonce, setAgentNonce] = useState(110);
+  const [agentNonce, setAgentNonce] = useState(111);
   const [serviceId] = useState('1');
   const [token] = useState('EGLD');
   const [nonce] = useState(0);
