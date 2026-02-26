@@ -1,6 +1,5 @@
 import { RouteNamesEnum } from 'localConstants';
 import { Dashboard } from 'pages/Dashboard/Dashboard';
-import { Disclaimer } from 'pages/Disclaimer/Disclaimer';
 import { Home } from 'pages/Home/Home';
 import { Unlock } from 'pages/Unlock/Unlock';
 import { WhatsNew } from 'pages/WhatsNew/WhatsNew';
@@ -30,11 +29,6 @@ export const routes: RouteWithTitleType[] = [
     title: 'Dashboard',
     component: Dashboard,
     authenticatedRoute: true
-  },
-  {
-    path: RouteNamesEnum.disclaimer,
-    title: 'Disclaimer',
-    component: Disclaimer
   },
   {
     path: RouteNamesEnum.whatsNew,

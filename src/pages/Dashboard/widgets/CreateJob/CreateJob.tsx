@@ -77,6 +77,9 @@ export const CreateJob = () => {
   // ── UI toggles ──────────────────────────────────────────────────
   const [showFaucetPanel, setShowFaucetPanel] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
+  const [disclaimerDismissed, setDisclaimerDismissed] = useState(
+    () => localStorage.getItem('mx_disclaimer_dismissed') === '1'
+  );
 
   // ── Refs ────────────────────────────────────────────────────────
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -280,12 +283,13 @@ export const CreateJob = () => {
   // ── Render ──────────────────────────────────────────────────────
   return (
     <div id={ItemsIdentifiersEnum.createJob} className={styles.container}>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.15 }}
-        className={`${styles.card} flex flex-col min-h-[320px] xs:min-h-[360px] sm:min-h-[480px]`}
-      >
+      <div className='relative'>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15 }}
+          className={`${styles.card} flex flex-col min-h-[320px] xs:min-h-[360px] sm:min-h-[480px]`}
+        >
         <ChatHeader
           jobId={jobId}
           isBusy={isBusy}
@@ -304,6 +308,7 @@ export const CreateJob = () => {
           amount={amount}
           isDevnet={isDevnet}
           needsFunds={needsFunds}
+          disclaimerDismissed={disclaimerDismissed}
           toasts={txTracking.toasts}
           trackedTransactions={txTracking.trackedTransactions}
           explorerAddress={network.explorerAddress}
@@ -312,6 +317,10 @@ export const CreateJob = () => {
           onCreateJob={handleCreateJob}
           onShowFaucet={() => setShowFaucetPanel(true)}
           onDismissToast={txTracking.dismissToast}
+          onDismissDisclaimer={() => {
+            localStorage.setItem('mx_disclaimer_dismissed', '1');
+            setDisclaimerDismissed(true);
+          }}
           chatContainerRef={chatContainerRef}
         />
 
@@ -356,7 +365,9 @@ export const CreateJob = () => {
             onLogout={handleLogout}
           />
         )}
-      </motion.div>
+        </motion.div>
+
+      </div>
 
       {isLoggedIn && previousSessionsTotal > 0 && (
         <div id='previous-sessions' className='pt-6'>
@@ -398,6 +409,75 @@ export const CreateJob = () => {
           onConfirm={handleConfirmSessionRating}
           onCancel={handleCancelSessionRating}
         />
+      )}
+
+      {/* Disclaimer — iOS-style card, bottom of viewport */}
+      {isLoggedIn && !jobId && !disclaimerDismissed && (
+        <motion.div
+          initial={{ opacity: 0, y: 60 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            rotate: [0, -3, 3, -2, 1.5, -0.5, 0],
+            boxShadow: [
+              '0 8px 60px 20px rgba(9,9,11,0.9)',
+              '0 8px 60px 20px rgba(9,9,11,0.9), 0 0 25px 6px rgba(251,191,36,0.3)',
+              '0 8px 60px 20px rgba(9,9,11,0.9), 0 0 25px 6px rgba(251,191,36,0.3)',
+              '0 8px 60px 20px rgba(9,9,11,0.9), 0 0 15px 3px rgba(251,191,36,0.15)',
+              '0 8px 60px 20px rgba(9,9,11,0.9), 0 0 10px 2px rgba(251,191,36,0.08)',
+              '0 8px 60px 20px rgba(9,9,11,0.9), 0 0 5px 1px rgba(251,191,36,0.04)',
+              '0 8px 60px 20px rgba(9,9,11,0.9)'
+            ]
+          }}
+          exit={{ opacity: 0, y: 60 }}
+          transition={{
+            opacity: { duration: 0.35, delay: 0.3 },
+            y: { duration: 0.35, delay: 0.3, ease: [0.32, 0.72, 0, 1] },
+            rotate: {
+              delay: 2,
+              duration: 0.6,
+              ease: 'easeInOut',
+              repeat: Infinity,
+              repeatDelay: 5
+            },
+            boxShadow: {
+              delay: 2,
+              duration: 0.6,
+              ease: 'easeInOut',
+              repeat: Infinity,
+              repeatDelay: 5
+            }
+          }}
+          className='fixed left-3 right-3 sm:left-auto sm:right-4 sm:w-[320px] z-[100] rounded-2xl bg-zinc-900 border border-zinc-700/50 overflow-hidden'
+          style={{ bottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}
+        >
+            <img
+              src='/disclaimer.webp'
+              alt='Max holding a disclaimer sign'
+              className='w-full aspect-video object-cover'
+            />
+            <div className='px-5 pt-4 pb-5 flex flex-col gap-4'>
+              <div>
+                <p className='text-lg font-medium text-zinc-100 leading-snug'>
+                  Max is an early demo
+                </p>
+                <p className='text-base text-zinc-400 leading-snug mt-1.5'>
+                  Not security-hardened, will make mistakes, and learn
+                  from them. Do not use him for any sensitive operations.
+                </p>
+              </div>
+              <button
+                type='button'
+                onClick={() => {
+                  localStorage.setItem('mx_disclaimer_dismissed', '1');
+                  setDisclaimerDismissed(true);
+                }}
+                className='w-full py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-750 text-base font-medium text-zinc-100 transition-colors duration-150 cursor-pointer'
+              >
+                Ok, I get it
+              </button>
+            </div>
+        </motion.div>
       )}
     </div>
   );

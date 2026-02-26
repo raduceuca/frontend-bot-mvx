@@ -56,6 +56,7 @@ interface ChatMessagesProps {
   amount: string;
   isDevnet: boolean;
   needsFunds: boolean;
+  disclaimerDismissed: boolean;
 
   toasts: ToastData[];
   trackedTransactions: TrackedTransaction[];
@@ -66,6 +67,7 @@ interface ChatMessagesProps {
   onCreateJob: () => void;
   onShowFaucet: () => void;
   onDismissToast: (id: string) => void;
+  onDismissDisclaimer: () => void;
 
   chatContainerRef: React.RefObject<HTMLDivElement>;
 }
@@ -79,6 +81,7 @@ export const ChatMessages = ({
   amount,
   isDevnet,
   needsFunds,
+  disclaimerDismissed,
   toasts,
   trackedTransactions,
   explorerAddress,
@@ -87,6 +90,7 @@ export const ChatMessages = ({
   onCreateJob,
   onShowFaucet,
   onDismissToast,
+  onDismissDisclaimer,
   chatContainerRef
 }: ChatMessagesProps) => (
   <>
@@ -258,6 +262,7 @@ export const ChatMessages = ({
               &darr;
             </button>
           )}
+
         </div>
       ) : (
         /* State 3: Active job -- messages or idle */
