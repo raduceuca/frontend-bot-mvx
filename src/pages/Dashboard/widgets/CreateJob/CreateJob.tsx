@@ -28,8 +28,10 @@ import { environment } from 'config';
 import {
   useCreateJob,
   useGiveFeedback,
-  useSendTokensToBot
+  useSendTokensToBot,
+  useSubmitProof
 } from 'hooks/transactions';
+import { useGetPreviousSessions } from 'hooks';
 import {
   ACCOUNTS_ENDPOINT,
   getAccountProvider,
@@ -43,7 +45,12 @@ import { EnvironmentsEnum } from 'lib/sdkDapp/sdkDapp.types';
 import { RouteNamesEnum } from 'localConstants';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
 import { Faucet } from 'pages/Dashboard/widgets/Faucet/Faucet';
-import { TransactionActivityBar, TransactionToast } from './components';
+import {
+  PreviousSessions,
+  RatingConfirmModal,
+  TransactionActivityBar,
+  TransactionToast
+} from './components';
 import { TrackedTransaction, TxStatus } from './createJob.types';
 
 const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
@@ -230,6 +237,19 @@ export const CreateJob = () => {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
+  // Session rating (from Previous Sessions list)
+  const [sessionRating, setSessionRating] = useState<{
+    jobId: string;
+    agentNonce: number;
+    rating: number;
+  } | null>(null);
+  const [isSubmittingSessionRating, setIsSubmittingSessionRating] =
+    useState(false);
+  const [sessionRatingError, setSessionRatingError] = useState<string | null>(
+    null
+  );
+  const [finishingJobId, setFinishingJobId] = useState<string | null>(null);
+
   // Transaction tracking
   const [trackedTransactions, setTrackedTransactions] = useState<
     TrackedTransaction[]
@@ -252,8 +272,16 @@ export const CreateJob = () => {
   const { createJob } = useCreateJob();
   const { sendTokensToBot } = useSendTokensToBot();
   const { giveFeedback } = useGiveFeedback();
+  const { submitProof } = useSubmitProof();
   const { isLoggedIn, tokenLogin } = useGetLoginInfo();
   const { network } = useGetNetworkConfig();
+  const {
+    sessions: previousSessions,
+    total: previousSessionsTotal,
+    isLoading: sessionsLoading,
+    error: sessionsError,
+    refetch: refetchSessions
+  } = useGetPreviousSessions(agentNonce, userAddress);
   const walletProvider = getAccountProvider();
   const walletNavigate = useNavigate();
   const [addressCopied, setAddressCopied] = useState(false);
@@ -504,7 +532,7 @@ export const CreateJob = () => {
         txHash,
         label: 'Job created',
         amount,
-        token: 'EGLD',
+        token: 'xEGLD',
         status: 'confirmed'
       });
 
@@ -588,15 +616,15 @@ export const CreateJob = () => {
 
       trackTransaction({
         txHash: sendTxHash,
-        label: 'EGLD to Max',
+        label: 'xEGLD to Max',
         amount: sendAmount,
-        token: 'EGLD',
+        token: 'xEGLD',
         status: 'confirmed'
       });
 
       pushMessage({
         role: 'system',
-        content: `${sendAmount} EGLD sent to Max. Transaction confirmed.`
+        content: `${sendAmount} xEGLD sent to Max. Transaction confirmed.`
       });
       pushMessage({
         role: 'system',
@@ -688,7 +716,7 @@ export const CreateJob = () => {
           txHash,
           label: `Rating: ${feedbackRating}/100`,
           amount: '0',
-          token: 'EGLD',
+          token: 'xEGLD',
           status: 'confirmed'
         });
       }
@@ -708,12 +736,115 @@ export const CreateJob = () => {
     }
   };
 
+  // ── Session finish handler (Previous Sessions list) ──────────────
+  const handleFinishSession = async (sessionJobId: string) => {
+    setFinishingJobId(sessionJobId);
+    try {
+      await submitProof(sessionJobId);
+    } catch {
+      // Job may already be finished server-side — refetch will show real status
+    } finally {
+      setFinishingJobId(null);
+      refetchSessions();
+    }
+  };
+
+  // ── Session rating handlers (Previous Sessions list) ─────────────
+  const handleRateSession = (
+    sessionJobId: string,
+    sessionAgentNonce: number,
+    rating: number
+  ) => {
+    setSessionRating({
+      jobId: sessionJobId,
+      agentNonce: sessionAgentNonce,
+      rating
+    });
+    setSessionRatingError(null);
+  };
+
+  const handleConfirmSessionRating = async () => {
+    if (!sessionRating) return;
+    setIsSubmittingSessionRating(true);
+    setSessionRatingError(null);
+    try {
+      // Finish the job first if it's still New/Pending
+      const session = previousSessions.find(
+        (s) => s.jobId === sessionRating.jobId
+      );
+      if (
+        session &&
+        (session.status === 'New' || session.status === 'Pending')
+      ) {
+        try {
+          await submitProof(sessionRating.jobId);
+        } catch {
+          // Continue to rating even if finish fails — job may already be done
+        }
+      }
+
+      const { txHash } = await giveFeedback(
+        sessionRating.jobId,
+        sessionRating.agentNonce,
+        sessionRating.rating
+      );
+      if (txHash) {
+        trackTransaction({
+          txHash,
+          label: `Rating: ${sessionRating.rating}/100`,
+          amount: '0',
+          token: 'xEGLD',
+          status: 'confirmed'
+        });
+      }
+      setSessionRating(null);
+      refetchSessions();
+    } catch (err: any) {
+      if (isUserCancellation(err)) {
+        setSessionRatingError(
+          'Signing cancelled. Your rating was not submitted.'
+        );
+      } else {
+        setSessionRatingError(
+          err?.message || 'Couldn\u2019t submit your rating. Try again?'
+        );
+      }
+    } finally {
+      setIsSubmittingSessionRating(false);
+    }
+  };
+
+  const handleCancelSessionRating = () => {
+    if (isSubmittingSessionRating) return;
+    setSessionRating(null);
+    setSessionRatingError(null);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!isBusy && prompt.trim()) handleSendPrompt();
     }
   };
+
+  // Auto-resize textarea as content grows
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [prompt]);
+
+  // Escape key handler for modals
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (showFaucetPanel) setShowFaucetPanel(false);
+      if (phase === 'rating' && pendingFeedback) handleCloseFeedbackModal();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showFaucetPanel, phase, pendingFeedback]);
 
   // ── Wallet Bar ───────────────────────────────────────────────────
 
@@ -800,7 +931,7 @@ export const CreateJob = () => {
             alt=''
             className='w-3 h-3 inline-block mr-1 -mt-0.5 rounded-sm'
           />
-          Mystery Box &middot; 1 EGLD
+          Mystery Box &middot; 1 xEGLD
         </button>
 
         {/* 2. Faucet — devnet only */}
@@ -851,14 +982,14 @@ export const CreateJob = () => {
 
         <button
           onClick={() =>
-            setPrompt('What would you do with 100 EGLD and zero morals?')
+            setPrompt('What would you do with 100 xEGLD and zero morals?')
           }
           disabled={actionsDisabled || isBusy}
           className={`${chipClass} ${
             actionsDisabled ? 'opacity-40 cursor-default' : ''
           }`}
         >
-          100 EGLD, zero morals
+          100 xEGLD, zero morals
         </button>
 
         <button
@@ -1026,7 +1157,12 @@ export const CreateJob = () => {
 
           {!isLoggedIn ? (
             /* State 1: Not logged in — Connect Wallet CTA */
-            <div className='flex-1 flex flex-col items-center justify-center gap-5 py-12'>
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className='flex-1 flex flex-col items-center justify-center gap-5 py-12'
+            >
               <img
                 src={maxAvatar}
                 alt='Max'
@@ -1077,7 +1213,7 @@ export const CreateJob = () => {
                   />
                 </a>
               </div>
-            </div>
+            </motion.div>
           ) : !jobId ? (
             /* State 2: Logged in, no active job — Start Job CTA */
             <div className='flex-1 flex flex-col items-center justify-center gap-4 py-8'>
@@ -1124,7 +1260,7 @@ export const CreateJob = () => {
                 ) : (
                   <div className='flex items-center justify-center gap-2'>
                     <FontAwesomeIcon icon={faBolt} /> Start Job &middot;{' '}
-                    {amount} EGLD
+                    {amount} xEGLD
                   </div>
                 )}
               </button>
@@ -1173,7 +1309,7 @@ export const CreateJob = () => {
                   </div>
                   <div className='flex flex-col gap-1'>
                     <label htmlFor='job-cost' className={styles.label}>
-                      Job Cost (EGLD)
+                      Job Cost (xEGLD)
                     </label>
                     <input
                       id='job-cost'
@@ -1185,6 +1321,19 @@ export const CreateJob = () => {
                   </div>
                 </div>
               )}
+
+              {/* Previous sessions */}
+              <PreviousSessions
+                sessions={previousSessions}
+                total={previousSessionsTotal}
+                isLoading={sessionsLoading}
+                error={sessionsError}
+                explorerAddress={network.explorerAddress}
+                onRetry={refetchSessions}
+                onRateSession={handleRateSession}
+                onFinishSession={handleFinishSession}
+                finishingJobId={finishingJobId}
+              />
             </div>
           ) : (
             /* State 3: Active job — messages or idle */
@@ -1377,12 +1526,14 @@ export const CreateJob = () => {
           role='dialog'
           aria-modal='true'
           aria-labelledby='faucet-title'
+          onClick={() => setShowFaucetPanel(false)}
         >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
             className='bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-6 flex flex-col gap-5'
+            onClick={(e) => e.stopPropagation()}
           >
             <div>
               <h3
@@ -1418,12 +1569,14 @@ export const CreateJob = () => {
           role='dialog'
           aria-modal='true'
           aria-labelledby='feedback-title'
+          onClick={handleCloseFeedbackModal}
         >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
             className='bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full p-6 flex flex-col gap-4'
+            onClick={(e) => e.stopPropagation()}
           >
             <h3
               id='feedback-title'
@@ -1517,6 +1670,18 @@ export const CreateJob = () => {
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* Session rating confirmation modal */}
+      {sessionRating && (
+        <RatingConfirmModal
+          jobId={sessionRating.jobId}
+          rating={sessionRating.rating}
+          isSubmitting={isSubmittingSessionRating}
+          error={sessionRatingError}
+          onConfirm={handleConfirmSessionRating}
+          onCancel={handleCancelSessionRating}
+        />
       )}
     </div>
   );
