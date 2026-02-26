@@ -29,10 +29,17 @@ interface PreviousSessionsProps {
 }
 
 const statusStyles: Record<string, string> = {
-  New: 'bg-zinc-800 text-zinc-400',
+  Active: 'bg-zinc-800 text-zinc-400',
   Pending: 'bg-warning/10 text-warning border border-warning/20',
   Completed: 'bg-success/10 text-success border border-success/20',
   Failed: 'bg-error/10 text-error border border-error/20'
+};
+
+const getDisplayStatus = (session: PreviousSession): string | null => {
+  const hasRating = session.ratingsCount != null && session.ratingsCount > 0;
+  if (hasRating) return null;
+  if (session.status === 'New') return 'Active';
+  return session.status;
 };
 
 const formatDate = (timestamp: number): string => {
@@ -147,13 +154,18 @@ export const PreviousSessions = ({
                   <span className='text-sm text-zinc-400 whitespace-nowrap'>
                     {formatDate(session.createdAt)}
                   </span>
-                  <span
-                    className={`text-sm px-1.5 py-0.5 rounded-md font-mono ${
-                      statusStyles[session.status] ?? statusStyles.New
-                    }`}
-                  >
-                    {session.status}
-                  </span>
+                  {(() => {
+                    const displayStatus = getDisplayStatus(session);
+                    return displayStatus ? (
+                      <span
+                        className={`text-sm px-1.5 py-0.5 rounded-md font-mono ${
+                          statusStyles[displayStatus] ?? statusStyles.Active
+                        }`}
+                      >
+                        {displayStatus}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
 
                 <div className='flex items-center gap-2.5 shrink-0'>

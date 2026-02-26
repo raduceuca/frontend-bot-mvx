@@ -1,11 +1,12 @@
-import { ProxyNetworkProvider } from '@multiversx/sdk-core/out';
 import { BOT_ADDRESS } from 'config';
 import { signAndSendTransactions } from 'helpers';
 import {
   Address,
+  ApiNetworkProvider,
   GAS_PRICE,
   parseAmount,
   Transaction,
+  TransactionWatcher,
   useGetAccount,
   useGetNetworkConfig
 } from 'lib';
@@ -79,7 +80,7 @@ export const useSendTokensToBot = () => {
       });
     }
 
-    const networkProvider = new ProxyNetworkProvider(network.apiAddress);
+    const networkProvider = new ApiNetworkProvider(network.apiAddress);
     const account = await networkProvider.getAccount(new Address(address));
     transaction.nonce = account.nonce;
 
@@ -93,23 +94,8 @@ export const useSendTokensToBot = () => {
       (sentTx as any).hash || (sentTx as any).getHash?.()?.toString?.();
 
     // Wait for on-chain confirmation
-    const MAX_POLL_ATTEMPTS = 20; // 20 × 3s = 60 seconds
-    let txOnChain: any = null;
-    let attempts = 0;
-
-    while (!txOnChain || !txOnChain.status.isCompleted()) {
-      if (++attempts > MAX_POLL_ATTEMPTS) {
-        throw new Error(
-          'Token transfer timed out. Check your wallet for confirmation.'
-        );
-      }
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      try {
-        txOnChain = await networkProvider.getTransaction(txHash);
-      } catch {
-        // Transaction not yet propagated, retrying
-      }
-    }
+    const watcher = new TransactionWatcher(networkProvider);
+    const txOnChain = await watcher.awaitCompleted(txHash);
 
     if (!txOnChain.status.isSuccessful()) {
       throw new Error(

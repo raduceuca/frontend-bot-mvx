@@ -1,12 +1,13 @@
-import { ProxyNetworkProvider } from '@multiversx/sdk-core/out';
 import axios from 'axios';
 import { FACILITATOR_API_URL } from 'config';
 import { signAndSendTransactions } from 'helpers';
 import {
   Address,
+  ApiNetworkProvider,
   GAS_PRICE,
   parseAmount,
   Transaction,
+  TransactionWatcher,
   useGetAccount,
   useGetNetworkConfig
 } from 'lib';
@@ -116,7 +117,7 @@ export const useCreateJob = () => {
         });
       }
 
-      const networkProvider = new ProxyNetworkProvider(network.apiAddress);
+      const networkProvider = new ApiNetworkProvider(network.apiAddress);
       const account = await networkProvider.getAccount(new Address(address));
       transaction.nonce = account.nonce;
       transaction.gasLimit = BigInt(20000000);
@@ -134,23 +135,11 @@ export const useCreateJob = () => {
       const txHash =
         (sentTx as any).hash || (sentTx as any).getHash().toString();
 
-      const MAX_POLL_ATTEMPTS = 60; // 60 × 3s = 3 minutes
-      let txOnChain: any = null;
-      let attempts = 0;
-
-      while (!txOnChain || !txOnChain.status.isCompleted()) {
-        if (++attempts > MAX_POLL_ATTEMPTS) {
-          throw new Error(
-            'Transaction polling timed out. Check your wallet for confirmation.'
-          );
-        }
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        try {
-          txOnChain = await networkProvider.getTransaction(txHash);
-        } catch {
-          // Transaction not yet propagated, retrying
-        }
-      }
+      const watcher = new TransactionWatcher(networkProvider, {
+        timeoutMilliseconds: 180_000, // 3 minutes (devnet can be slow)
+        pollingIntervalMilliseconds: 3_000
+      });
+      const txOnChain = await watcher.awaitCompleted(txHash);
 
       // 5. Check the final status
       if (!txOnChain.status.isSuccessful()) {

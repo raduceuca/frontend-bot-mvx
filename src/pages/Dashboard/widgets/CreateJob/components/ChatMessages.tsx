@@ -8,7 +8,9 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { motion } from 'motion/react';
 import Markdown from 'react-markdown';
-import maxAvatar from 'assets/img/max-avatar.png';
+import remarkBreaks from 'remark-breaks';
+import remarkGfm from 'remark-gfm';
+import maxAvatar from 'assets/img/max-avatar.webp';
 import { styles } from '../createJob.styles';
 import {
   ChatMessage,
@@ -20,6 +22,30 @@ import { TransactionActivityBar } from './TransactionActivityBar';
 import { TransactionToast } from './TransactionToast';
 
 const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
+
+/** Normalize agent markdown for display: paragraph breaks, table newlines, step headers. */
+const normalizeAgentMarkdown = (raw: string): string => {
+  if (!raw?.trim()) return raw;
+  let s = raw;
+  // Sentence boundaries: after . ! ? followed by space and capital letter, add paragraph break
+  s = s.replace(/([.!?])\s+([A-Z])/g, '$1\n\n$2');
+  // Run-on sentences: "!Got" or "?Really" with no space -> add paragraph break
+  s = s.replace(/([!?])([A-Z])/g, '$1\n\n$2');
+  // Table: ensure newline before separator row (| |------- -> |\n|-------)
+  s = s.replace(/ \|\s+\|(?=\s*[-|])/g, ' |\n|');
+  // Step / list headers on their own line (e.g. "textStep 1:" -> "text\n\nStep 1:")
+  s = s.replace(/([^\n])(Step \d+:)/g, '$1\n\n$2');
+  s = s.replace(/([^\n])(My token picks:)/g, '$1\n\n$2');
+  s = s.replace(/([^\n])(Why I chose)/g, '$1\n\n$2');
+  // Fix "Step 1:**" / "Step 2:**" (stray ** after step header) -> "Step 1:" / "Step 2:"
+  s = s.replace(/(Step \d+):\*\*/g, '$1:');
+  // Remove orphan "**" at line end/start (unpaired bold markers)
+  s = s.replace(/\*\*\s*$/gm, '');
+  s = s.replace(/^\s*\*\*/gm, '');
+  // Ensure space after colon when missing (e.g. "EGLD:Wrapped" -> "EGLD: Wrapped"), skip "://"
+  s = s.replace(/:(?!\/\/)([A-Za-z0-9])/g, ': $1');
+  return s;
+};
 
 interface ChatMessagesProps {
   isLoggedIn: boolean;
@@ -78,7 +104,7 @@ export const ChatMessages = ({
       role='log'
       aria-live='polite'
       aria-label='Chat with Max'
-      className='flex-1 overflow-y-auto custom-scrollbar px-3 xs:px-4 sm:px-5 py-3 xs:py-4 flex flex-col gap-3'
+      className='flex-1 overflow-y-auto custom-scrollbar px-3 xs:px-4 sm:px-5 pt-3 xs:pt-4 pb-24 flex flex-col gap-3'
     >
       {/* Transaction confirmation toasts */}
       {toasts.length > 0 && (
@@ -184,6 +210,20 @@ export const ChatMessages = ({
             )}
           </div>
 
+          {/* Error from a failed job creation attempt */}
+          {phase === 'error' &&
+            messages.filter((m) => m.isError).length > 0 && (
+              <div
+                role='alert'
+                className='flex items-center gap-2 text-sm text-error max-w-sm text-center'
+              >
+                <FontAwesomeIcon icon={faTimesCircle} className='shrink-0' />
+                <span>
+                  {messages.filter((m) => m.isError).pop()?.content}
+                </span>
+              </div>
+            )}
+
           <button
             disabled={phase === 'creating'}
             onClick={onCreateJob}
@@ -195,8 +235,9 @@ export const ChatMessages = ({
               </div>
             ) : (
               <div className='flex items-center justify-center gap-2'>
-                <FontAwesomeIcon icon={faBolt} /> Start chat &middot; {amount}{' '}
-                xEGLD
+                <FontAwesomeIcon icon={faBolt} />{' '}
+                {phase === 'error' ? 'Try again' : 'Start chat'} &middot;{' '}
+                {amount} xEGLD
               </div>
             )}
           </button>
@@ -222,12 +263,7 @@ export const ChatMessages = ({
         /* State 3: Active job -- messages or idle */
         <>
           {messages.length === 0 && (
-            <div className='flex-1 flex flex-col items-center justify-center gap-3 py-12'>
-              <img
-                src={maxAvatar}
-                alt='Max'
-                className='w-10 h-10 rounded-lg opacity-60'
-              />
+            <div className='flex-1 flex items-center justify-center py-12'>
               <span className='text-base text-zinc-500'>
                 Max is standing by
               </span>
@@ -265,8 +301,10 @@ export const ChatMessages = ({
                     alt=''
                     className='w-8 h-8 shrink-0 mt-1 rounded-lg'
                   />
-                  <div className='bg-zinc-800 border border-zinc-700/50 text-zinc-50 rounded-2xl rounded-tl-md px-3 xs:px-5 py-3 xs:py-4 text-base prose prose-invert prose-sm prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-2 prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-code:text-teal prose-a:text-teal prose-a:no-underline hover:prose-a:underline max-w-none break-words'>
-                    <Markdown>{msg.content}</Markdown>
+                  <div className='bg-zinc-800 border border-zinc-700/50 text-zinc-50 rounded-2xl rounded-tl-md px-3 xs:px-5 py-3 xs:py-4 text-base prose prose-invert prose-sm prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-2 prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-code:text-teal prose-a:text-teal prose-a:no-underline hover:prose-a:underline prose-table:my-2 prose-th:border prose-th:border-zinc-600 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-zinc-600 prose-td:px-3 prose-td:py-2 max-w-none break-words'>
+                    <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                      {normalizeAgentMarkdown(msg.content)}
+                    </Markdown>
                   </div>
                 </motion.div>
               );

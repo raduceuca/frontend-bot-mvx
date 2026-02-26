@@ -4,9 +4,10 @@ import {
   faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import maxAvatar from 'assets/img/max-avatar.png';
+import maxAvatar from 'assets/img/max-avatar.webp';
 import { styles } from '../createJob.styles';
 import { JobPhase } from '../createJob.types';
+import { NetworkBadge } from './NetworkBadge';
 
 const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
 
@@ -30,7 +31,7 @@ export const ChatHeader = ({
   <div className='px-3 xs:px-4 sm:px-5 py-2.5 xs:py-3 border-b border-zinc-800 flex items-center justify-between gap-2'>
     <div className='flex items-center gap-2.5'>
       <div className='relative'>
-        <img src={maxAvatar} alt='Max' className='w-8 h-8 rounded-lg' />
+        <img src={maxAvatar} alt='Max' className='w-10 h-10 rounded-lg' />
         {jobId && (
           <span
             className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-zinc-900 ${
@@ -76,9 +77,7 @@ export const ChatHeader = ({
     </div>
 
     <div className='flex items-center gap-2'>
-      <div className='text-sm font-mono text-zinc-500 bg-zinc-800/60 px-2 py-0.5 rounded-md capitalize'>
-        {networkId}
-      </div>
+      <NetworkBadge networkId={networkId} />
 
       {jobId && (
         <button

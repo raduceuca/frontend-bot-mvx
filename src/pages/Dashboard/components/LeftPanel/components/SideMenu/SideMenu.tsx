@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import { useState } from 'react';
-import maxAvatar from 'assets/img/max-avatar.png';
+import maxAvatar from 'assets/img/max-avatar.webp';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
 import { ItemIcon } from './components';
 import styles from './sideMenu.styles';

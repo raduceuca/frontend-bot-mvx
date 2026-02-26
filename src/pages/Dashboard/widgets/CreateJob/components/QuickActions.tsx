@@ -1,4 +1,4 @@
-import maxAvatar from 'assets/img/max-avatar.png';
+import maxAvatar from 'assets/img/max-avatar.webp';
 
 interface QuickActionsProps {
   isLoggedIn: boolean;

@@ -6,8 +6,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useNavigate } from 'react-router-dom';
-import maxAvatar from 'assets/img/max-avatar.png';
-import mysteryBoxBg from 'assets/img/token-safari-bg.png';
+import maxAvatar from 'assets/img/max-avatar.webp';
+import mysteryBoxBg from 'assets/img/token-safari-bg.webp';
 import { useGetIsLoggedIn } from 'lib';
 import { RouteNamesEnum } from 'localConstants';
 

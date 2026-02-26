@@ -2,6 +2,7 @@ export {
   AbiRegistry,
   Address,
   AddressValue,
+  ApiNetworkProvider,
   ContractFunction,
   Message,
   MessageComputer,

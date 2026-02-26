@@ -1,8 +1,8 @@
-import { ProxyNetworkProvider } from '@multiversx/sdk-core/out';
 import { REPUTATION_REGISTRY_ADDRESS } from 'config';
 import { signAndSendTransactions } from 'helpers';
 import {
   Address,
+  ApiNetworkProvider,
   GAS_PRICE,
   Transaction,
   useGetAccount,
@@ -54,7 +54,7 @@ export const useGiveFeedback = () => {
       version: 2
     });
 
-    const networkProvider = new ProxyNetworkProvider(network.apiAddress);
+    const networkProvider = new ApiNetworkProvider(network.apiAddress);
     const account = await networkProvider.getAccount(new Address(address));
     transaction.nonce = account.nonce;
 

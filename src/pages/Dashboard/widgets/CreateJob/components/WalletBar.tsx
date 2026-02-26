@@ -7,6 +7,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { truncateAddress } from '../createJob.utils';
+import { NetworkBadge } from './NetworkBadge';
 
 interface WalletBarProps {
   userAddress: string;
@@ -22,7 +23,7 @@ interface WalletBarProps {
 }
 
 const walletBtn =
-  'flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-300 transition-colors duration-150 cursor-pointer rounded-md px-2 py-2 -mx-1 xs:-mx-2 hover:bg-zinc-800/50 min-h-[36px]';
+  'flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors duration-150 cursor-pointer rounded-md px-2.5 py-1.5 hover:bg-zinc-800/50';
 
 export const WalletBar = ({
   userAddress,
@@ -63,22 +64,19 @@ export const WalletBar = ({
       {isDevnet && (
         <button
           onClick={onShowFaucet}
-          className={`${walletBtn} ${needsFunds ? 'text-warning hover:text-warning' : ''}`}
+          className={`${walletBtn} ${
+            needsFunds ? 'text-warning hover:text-warning' : ''
+          }`}
         >
           <FontAwesomeIcon icon={faCoins} className='text-sm' />
           <span>Faucet</span>
         </button>
       )}
-      <button
-        onClick={onNotifications}
-        className={walletBtn}
-      >
+      <button onClick={onNotifications} className={walletBtn}>
         <FontAwesomeIcon icon={faBell} className='text-sm' />
         <span>Alerts</span>
       </button>
-      <span className='text-sm font-mono text-zinc-500 bg-zinc-800/60 px-2 py-0.5 rounded-md capitalize'>
-        {networkId}
-      </span>
+      <NetworkBadge networkId={networkId} />
       <button
         onClick={onLogout}
         className={`${walletBtn} hover:text-error/80 hover:bg-error/5`}

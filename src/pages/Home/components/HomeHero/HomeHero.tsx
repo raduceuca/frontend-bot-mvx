@@ -1,26 +1,25 @@
 import { motion } from 'motion/react';
-import heroBg from 'assets/img/hero-underwater-bg.png';
+import heroBg from 'assets/img/hero-underwater-bg.webp';
 import { CreateJob } from 'pages/Dashboard/widgets/CreateJob/CreateJob';
 
 // ── Component ─────────────────────────────────────────────────────
 
 export const HomeHero = () => (
   <div className='relative flex flex-col w-full'>
-    {/* Background image — covers top portion only, not full chat height */}
+    {/* Background image — full viewport width, native 16:9 aspect ratio.
+         Uses mask-image to fade the bottom to transparent, revealing
+         whatever background is behind it (no color-matching needed). */}
     <div
-      className='absolute top-0 left-1/2 -translate-x-1/2 w-screen h-[60%]'
+      className='absolute inset-x-0 top-0 w-screen left-1/2 -translate-x-1/2'
       style={{
+        aspectRatio: '16 / 9',
         backgroundImage: `url(${heroBg})`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center top'
-      }}
-    />
-    {/* Gradient overlay — fades image out before it reaches the chat */}
-    <div
-      className='absolute top-0 left-1/2 -translate-x-1/2 w-screen h-[60%]'
-      style={{
-        background:
-          'linear-gradient(to bottom, color-mix(in srgb, var(--bg-0) 10%, transparent) 0%, color-mix(in srgb, var(--bg-0) 25%, transparent) 30%, color-mix(in srgb, var(--bg-0) 55%, transparent) 60%, var(--bg-0) 100%)'
+        backgroundPosition: 'center top',
+        maskImage:
+          'linear-gradient(to bottom, black 50%, transparent 100%)',
+        WebkitMaskImage:
+          'linear-gradient(to bottom, black 50%, transparent 100%)'
       }}
     />
 

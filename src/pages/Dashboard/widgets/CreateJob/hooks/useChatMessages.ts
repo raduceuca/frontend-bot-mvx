@@ -35,6 +35,36 @@ export const useChatMessages = () => {
       prev[prev.length - 1]?.isStatus ? prev.slice(0, -1) : prev
     );
 
+  const appendToLastAgentMessage = (chunk: string) =>
+    setMessages((prev) => {
+      if (!chunk) return prev;
+      if (prev.length === 0) {
+        return [
+          ...prev,
+          {
+            id: uid(),
+            role: 'agent' as const,
+            content: chunk
+          }
+        ];
+      }
+      const last = prev[prev.length - 1];
+      if (last.role !== 'agent' || last.isStatus || last.isError) {
+        return [
+          ...prev,
+          {
+            id: uid(),
+            role: 'agent' as const,
+            content: chunk
+          }
+        ];
+      }
+      return [
+        ...prev.slice(0, -1),
+        { ...last, content: `${last.content ?? ''}${chunk}` }
+      ];
+    });
+
   const clearMessages = () => setMessages([]);
 
   const restoreMessages = (
@@ -61,6 +91,7 @@ export const useChatMessages = () => {
     pushMessage,
     replaceLastStatus,
     removeLastStatus,
+    appendToLastAgentMessage,
     clearMessages,
     restoreMessages
   };
