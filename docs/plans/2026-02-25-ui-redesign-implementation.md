@@ -594,7 +594,7 @@ export const MysteryBox = () => {
 6. In your final report you MUST include: (a) your reasoning for choosing each output token (why you picked them), and (b) a clear line telling the user to check their wallet for their newly swapped tokens. Report which tokens and amounts were sent.`;
 
       const { data: initData } = await axios.post(
-        `${TASK_SERVICE_API_URL}/start-task-cli`,
+        `${TASK_SERVICE_API_URL}/start-task`,
         { jobId, prompt: swapPrompt },
         {
           headers: {

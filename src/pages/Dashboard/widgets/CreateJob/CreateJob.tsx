@@ -22,6 +22,8 @@ import { motion } from 'motion/react';
 import { MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
+import remarkBreaks from 'remark-breaks';
+import remarkGfm from 'remark-gfm';
 import maxAvatar from 'assets/img/max-avatar.png';
 import { TASK_SERVICE_API_URL } from 'config';
 import { environment } from 'config';
@@ -48,7 +50,7 @@ import { TrackedTransaction, TxStatus } from './createJob.types';
 
 const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
 
-/** API-based task start (streams `delta` events). Use `/start-task-cli` for CLI-style `line` events. */
+/** Start task; connect to /tasks/:taskId/stream for real-time line/delta events. */
 const START_TASK_PATH = '/start-task';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -182,6 +184,30 @@ const parseAgentResponse = (val: unknown): string => {
   } catch {
     return val;
   }
+};
+
+/** Normalize agent markdown for display: paragraph breaks, table newlines, step headers. */
+const normalizeAgentMarkdown = (raw: string): string => {
+  if (!raw?.trim()) return raw;
+  let s = raw;
+  // Sentence boundaries: after . ! ? followed by space and capital letter, add paragraph break
+  s = s.replace(/([.!?])\s+([A-Z])/g, '$1\n\n$2');
+  // Run-on sentences: "!Got" or "?Really" with no space -> add paragraph break
+  s = s.replace(/([!?])([A-Z])/g, '$1\n\n$2');
+  // Table: ensure newline before separator row (| |------- -> |\n|-------)
+  s = s.replace(/ \|\s+\|(?=\s*[-|])/g, ' |\n|');
+  // Step / list headers on their own line (e.g. "textStep 1:" -> "text\n\nStep 1:")
+  s = s.replace(/([^\n])(Step \d+:)/g, '$1\n\n$2');
+  s = s.replace(/([^\n])(My token picks:)/g, '$1\n\n$2');
+  s = s.replace(/([^\n])(Why I chose)/g, '$1\n\n$2');
+  // Fix "Step 1:**" / "Step 2:**" (stray ** after step header) -> "Step 1:" / "Step 2:"
+  s = s.replace(/(Step \d+):\*\*/g, '$1:');
+  // Remove orphan "**" at line end/start (unpaired bold markers)
+  s = s.replace(/\*\*\s*$/gm, '');
+  s = s.replace(/^\s*\*\*/gm, '');
+  // Ensure space after colon when missing (e.g. "EGLD:Wrapped" -> "EGLD: Wrapped"), skip "://"
+  s = s.replace(/:(?!\/\/)([A-Za-z0-9])/g, ': $1');
+  return s;
 };
 
 const buildSwapPrompt = (userAddress: string, amountAtoms: string) =>
@@ -1322,8 +1348,8 @@ export const CreateJob = () => {
                         alt=''
                         className='w-8 h-8 shrink-0 mt-1 rounded-lg'
                       />
-                      <div className='bg-zinc-800 border border-zinc-700/50 text-zinc-50 rounded-2xl rounded-tl-md px-5 py-4 text-base prose prose-invert prose-sm prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-2 prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-lg prose-code:text-teal prose-a:text-teal prose-a:no-underline hover:prose-a:underline max-w-none'>
-                        <Markdown>{msg.content}</Markdown>
+                      <div className='bg-zinc-800 border border-zinc-700/50 text-zinc-50 rounded-2xl rounded-tl-md px-5 py-4 text-base prose prose-invert prose-sm prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-2 prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-lg prose-code:text-teal prose-a:text-teal prose-a:no-underline hover:prose-a:underline prose-table:my-2 prose-th:border prose-th:border-zinc-600 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-zinc-600 prose-td:px-3 prose-td:py-2 max-w-none'>
+                        <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>{normalizeAgentMarkdown(msg.content)}</Markdown>
                       </div>
                     </motion.div>
                   );
