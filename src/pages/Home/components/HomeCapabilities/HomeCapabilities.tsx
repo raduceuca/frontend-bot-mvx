@@ -1,7 +1,15 @@
-import { faBolt, faBrain, faComments } from '@fortawesome/free-solid-svg-icons';
+import {
+  faBolt,
+  faBrain,
+  faComments,
+  faWallet
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useNavigate } from 'react-router-dom';
 import maxAvatar from 'assets/img/max-avatar.png';
 import mysteryBoxBg from 'assets/img/token-safari-bg.png';
+import { useGetIsLoggedIn } from 'lib';
+import { RouteNamesEnum } from 'localConstants';
 
 const capabilities = [
   {
@@ -24,7 +32,19 @@ const capabilities = [
   }
 ];
 
-export const HomeCapabilities = () => (
+export const HomeCapabilities = () => {
+  const isLoggedIn = useGetIsLoggedIn();
+  const navigate = useNavigate();
+
+  const handleCTA = () => {
+    if (isLoggedIn) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigate(RouteNamesEnum.unlock);
+    }
+  };
+
+  return (
   <div className='flex flex-col gap-8 w-full relative pt-10 sm:pt-16'>
     {/* Capabilities header + cards — normal flow */}
     <div className='flex flex-col gap-8'>
@@ -59,64 +79,75 @@ export const HomeCapabilities = () => (
       </div>
     </div>
 
-    {/*
-      Mystery Box callout — bigger, more visual.
-      The background image overflows and bleeds into the bottom of the page.
-    */}
-    <div className='relative -mx-4 sm:-mx-6 px-4 sm:px-6'>
-      {/* Background image — contained within the callout area */}
-      <div
-        className='absolute inset-0'
-        style={{
-          backgroundImage: `url(${mysteryBoxBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center top'
-        }}
-      >
-        <div className='absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-950/60 to-zinc-950' />
-      </div>
+    {/* Mystery Box CTA */}
+    <div className='relative rounded-2xl overflow-hidden'>
+      {/* Background image — full, no blur */}
+      <img
+        src={mysteryBoxBg}
+        alt=''
+        className='absolute inset-0 w-full h-full object-cover'
+      />
+      {/* Gradient overlay — bottom-heavy for text readability */}
+      <div className='absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-transparent' />
 
-      {/* Card content */}
-      <div className='relative z-10 rounded-xl border border-teal/20 overflow-hidden p-5 sm:p-8 flex flex-col gap-4 bg-zinc-950/40 backdrop-blur-sm'>
-        {/* Top row: icon + badge */}
-        <div className='flex items-center gap-3'>
-          <img
-            src={maxAvatar}
-            alt='Max'
-            className='w-11 h-11 rounded-lg shrink-0'
-          />
-          <div className='flex flex-col gap-0.5'>
-            <div className='flex items-center gap-2'>
-              <span className='text-lg font-semibold text-teal tracking-tight'>
-                Mystery Box
-              </span>
-              <span className='text-base font-mono text-warning bg-warning/10 px-1.5 py-0.5 rounded-md'>
-                Experiment
-              </span>
-            </div>
-            <span className='text-base text-zinc-500 font-mono'>
-              1 EGLD per run
-            </span>
-          </div>
+      {/* Content — positioned over the image */}
+      <div className='relative z-10 flex flex-col gap-5 p-6 sm:p-8 pt-32 sm:pt-40'>
+        {/* Badge */}
+        <div className='flex items-center gap-2'>
+          <span className='text-sm font-mono font-semibold text-teal/80 uppercase tracking-wider bg-zinc-950/60 px-2.5 py-1 rounded-md'>
+            Experiment
+          </span>
         </div>
 
-        {/* Description */}
-        <p className='text-base text-zinc-300 leading-relaxed max-w-lg'>
-          Send 1 EGLD. Max buys a surprise mix of tokens and sends them straight
-          to your wallet. No guarantees, no strategy — just curiosity on devnet.
-        </p>
+        {/* Title + description */}
+        <div className='flex flex-col gap-2 max-w-lg'>
+          <h3 className='text-2xl sm:text-3xl font-semibold text-zinc-50 tracking-tight'>
+            Mystery Box
+          </h3>
+          <p className='text-base text-zinc-300 leading-relaxed'>
+            Send 1 EGLD. Max picks a surprise mix of tokens from the DEX and
+            sends them straight to your wallet. No strategy, no promises — just
+            curiosity on devnet.
+          </p>
+        </div>
 
-        {/* Visual hint — mini preview of what happens */}
-        <div className='flex items-center flex-wrap gap-x-2 gap-y-1 text-base text-zinc-500'>
-          <span className='font-mono'>You send EGLD</span>
+        {/* Flow steps */}
+        <div className='flex items-center flex-wrap gap-x-3 gap-y-1.5 text-base'>
+          <span className='font-mono text-zinc-400'>You send EGLD</span>
           <span className='text-teal/60'>&rarr;</span>
-          <span className='font-mono'>Max buys tokens</span>
+          <span className='font-mono text-zinc-400'>Max buys tokens</span>
           <span className='text-teal/60'>&rarr;</span>
-          <span className='font-mono'>Tokens land in your wallet</span>
+          <span className='font-mono text-zinc-400'>
+            Tokens land in your wallet
+          </span>
+        </div>
+
+        {/* CTA */}
+        <div className='flex items-center gap-3 pt-1'>
+          <button
+            onClick={handleCTA}
+            className='flex items-center gap-2 px-5 py-2.5 bg-teal hover:bg-teal/80 text-zinc-950 font-medium text-base rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
+          >
+            {isLoggedIn ? (
+              <>
+                <img
+                  src={maxAvatar}
+                  alt=''
+                  className='w-5 h-5 rounded-sm'
+                />
+                Start a job with Max
+              </>
+            ) : (
+              <>
+                <FontAwesomeIcon icon={faWallet} />
+                Connect wallet to try
+              </>
+            )}
+          </button>
+          <span className='text-base text-zinc-500'>1 EGLD per run</span>
         </div>
       </div>
-
-      <div className='h-6' />
     </div>
   </div>
-);
+  );
+};
