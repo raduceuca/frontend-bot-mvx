@@ -4,12 +4,12 @@ import { FunctionComponent, SVGProps } from 'react';
 
 // prettier-ignore
 const styles = {
-  connectCardContainer: 'connect-card-container bg-secondary p-8 lg:p-10 flex flex-col gap-10 rounded-2xl lg:rounded-3xl transition-all duration-200 ease-out',
-  connectCardText: 'connect-card-text flex flex-col gap-4 flex-1',
-  connectCardTitle: 'connect-card-title text-3xl text-primary font-medium tracking-[-0.96px] leading-[1] transition-all duration-200 ease-out',
-  connectCardDescription: 'connect-card-description text-secondary text-xl tracking-[-0.21px] leading-[1.5] transition-all duration-200 ease-out',
-  connectCardLink: 'connect-card-link text-accent hover:opacity-75 text-lg font-semibold transition-all duration-200 ease-out',
-  connectCardLinkTitle: 'connect-card-link-title p-3'
+  connectCardContainer: 'connect-card-container bg-zinc-900/80 border border-zinc-800 p-6 flex flex-col gap-6 rounded-xl hover:border-zinc-700 hover:-translate-y-0.5 transition-all duration-200 ease-out',
+  connectCardText: 'connect-card-text flex flex-col gap-3 flex-1',
+  connectCardTitle: 'connect-card-title text-xl text-zinc-50 font-medium tracking-tight leading-[1.1] transition-all duration-200 ease-out',
+  connectCardDescription: 'connect-card-description text-zinc-400 text-base leading-relaxed transition-all duration-200 ease-out',
+  connectCardLink: 'connect-card-link text-teal hover:text-teal/80 text-base font-semibold transition-all duration-200 ease-out flex items-center gap-2',
+  connectCardLinkTitle: 'connect-card-link-title'
 } satisfies Record<string, string>;
 
 interface ConnectCardPropsType {
@@ -42,6 +42,7 @@ export const ConnectCard = ({
       <a
         href={linkDownloadAddress}
         target='_blank'
+        rel='noopener noreferrer'
         className={styles.connectCardLink}
       >
         <span className={styles.connectCardLinkTitle}>{linkTitle}</span>

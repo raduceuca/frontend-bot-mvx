@@ -9,6 +9,7 @@ import {
   faUserPlus
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 
 const steps = [
@@ -101,10 +102,15 @@ export const BuildYourAgent = () => {
         </span>
       </button>
 
-      {expanded && (
-        <div
+      <AnimatePresence>
+        {expanded && (
+        <motion.div
           id='build-agent-section'
-          className='flex flex-col gap-10 pb-8 animate-[fadeIn_0.15s_ease-out]'
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className='flex flex-col gap-10 pb-8 overflow-hidden'
         >
           {/* How it works */}
           <div className='flex flex-col gap-4'>
@@ -132,7 +138,7 @@ export const BuildYourAgent = () => {
             <div className='flex flex-col sm:flex-row items-start sm:items-center gap-2 text-base text-zinc-500 font-mono'>
               <span>Run OpenClaw</span>
               <span className='text-teal/50 hidden sm:inline'>&rarr;</span>
-              <span>Create job (0.05 EGLD)</span>
+              <span>Create job (0.05 xEGLD)</span>
               <span className='text-teal/50 hidden sm:inline'>&rarr;</span>
               <span>Chat with agent</span>
               <span className='text-teal/50 hidden sm:inline'>&rarr;</span>
@@ -162,7 +168,7 @@ export const BuildYourAgent = () => {
               {steps.map((step) => (
                 <div
                   key={step.number}
-                  className='bg-zinc-900/60 border border-zinc-800 rounded-xl p-5 flex flex-col gap-3 hover:border-zinc-700 transition-colors duration-150'
+                  className='bg-zinc-900/60 border border-zinc-800 rounded-xl p-5 flex flex-col gap-3 hover:border-zinc-700 hover:-translate-y-0.5 transition-all duration-200'
                 >
                   <div className='flex items-center gap-3'>
                     <span className='text-sm font-mono font-semibold text-teal/60'>
@@ -226,8 +232,9 @@ export const BuildYourAgent = () => {
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </section>
   );
 };

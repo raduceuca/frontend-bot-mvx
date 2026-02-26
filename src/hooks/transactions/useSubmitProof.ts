@@ -19,10 +19,14 @@ export const useSubmitProof = () => {
       );
 
       return { success: true };
-    } catch (err: any) {
-      console.error('Submit proof failed', err);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        throw new Error(
+          err.response?.data?.message || err.message || 'Failed to finish job'
+        );
+      }
       throw new Error(
-        err.response?.data?.message || err.message || 'Failed to finish job'
+        err instanceof Error ? err.message : 'Failed to finish job'
       );
     }
   };

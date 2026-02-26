@@ -3,6 +3,7 @@ import { Dashboard } from 'pages/Dashboard/Dashboard';
 import { Disclaimer } from 'pages/Disclaimer/Disclaimer';
 import { Home } from 'pages/Home/Home';
 import { Unlock } from 'pages/Unlock/Unlock';
+import { WhatsNew } from 'pages/WhatsNew/WhatsNew';
 import { RouteType } from 'types';
 
 interface RouteWithTitleType extends RouteType {
@@ -34,5 +35,10 @@ export const routes: RouteWithTitleType[] = [
     path: RouteNamesEnum.disclaimer,
     title: 'Disclaimer',
     component: Disclaimer
+  },
+  {
+    path: RouteNamesEnum.whatsNew,
+    title: 'What\u2019s New',
+    component: WhatsNew
   }
 ];

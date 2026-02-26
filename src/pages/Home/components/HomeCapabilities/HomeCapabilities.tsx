@@ -52,7 +52,7 @@ export const HomeCapabilities = () => {
         <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
           Capabilities
         </span>
-        <h2 className='text-lg font-semibold tracking-tight text-zinc-50'>
+        <h2 className='text-xl sm:text-2xl font-semibold tracking-tight text-zinc-50'>
           What Max can do
         </h2>
       </div>
@@ -61,7 +61,7 @@ export const HomeCapabilities = () => {
         {capabilities.map((cap) => (
           <div
             key={cap.title}
-            className='bg-zinc-900/80 backdrop-blur-sm border border-zinc-800 rounded-xl p-6 flex flex-col gap-3 hover:border-zinc-700 transition-colors duration-150'
+            className='bg-zinc-900/80 backdrop-blur-sm border border-zinc-800 rounded-xl p-6 flex flex-col gap-3 hover:border-zinc-700 hover:-translate-y-0.5 transition-all duration-200'
           >
             <div className='flex items-center gap-2.5'>
               <div className='w-8 h-8 rounded-lg bg-zinc-800 text-teal flex items-center justify-center text-base'>
@@ -113,7 +113,7 @@ export const HomeCapabilities = () => {
 
         {/* Flow steps */}
         <div className='flex items-center flex-wrap gap-x-3 gap-y-1.5 text-base'>
-          <span className='font-mono text-zinc-400'>You send EGLD</span>
+          <span className='font-mono text-zinc-400'>You send xEGLD</span>
           <span className='text-teal/60'>&rarr;</span>
           <span className='font-mono text-zinc-400'>Max buys tokens</span>
           <span className='text-teal/60'>&rarr;</span>
@@ -144,7 +144,7 @@ export const HomeCapabilities = () => {
               </>
             )}
           </button>
-          <span className='text-base text-zinc-500'>1 EGLD per run</span>
+          <span className='text-base text-zinc-500'>1 xEGLD per run</span>
         </div>
       </div>
     </div>

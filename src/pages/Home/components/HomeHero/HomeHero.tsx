@@ -1,3 +1,4 @@
+import { motion } from 'motion/react';
 import heroBg from 'assets/img/hero-underwater-bg.png';
 import { CreateJob } from 'pages/Dashboard/widgets/CreateJob/CreateJob';
 
@@ -24,15 +25,33 @@ export const HomeHero = () => (
     />
 
     {/* Hero headline */}
-    <div className='relative z-10 flex flex-col items-center gap-6 px-4 sm:px-6 pt-14 sm:pt-20 pb-10 sm:pb-14 lg:pt-28 lg:pb-16 max-w-4xl mx-auto'>
-      <h1 className='text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-[-0.03em] text-zinc-50 text-center'>
+    <div className='relative z-10 flex flex-col items-center gap-4 px-4 sm:px-6 pt-14 sm:pt-20 pb-10 sm:pb-14 lg:pt-28 lg:pb-16 max-w-4xl mx-auto'>
+      <motion.h1
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className='text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-[-0.03em] text-zinc-50 text-center leading-[1.1]'
+      >
         Give an AI a wallet; see what happens.
-      </h1>
+      </motion.h1>
+      <motion.p
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut', delay: 0.1 }}
+        className='text-base sm:text-lg text-zinc-400 text-center max-w-xl'
+      >
+        Max trades, swaps, and transacts on MultiversX — you just tell it what to do.
+      </motion.p>
     </div>
 
     {/* Chat interface — sits over the fading background */}
-    <div className='relative z-10'>
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut', delay: 0.2 }}
+      className='relative z-10'
+    >
       <CreateJob />
-    </div>
+    </motion.div>
   </div>
 );
