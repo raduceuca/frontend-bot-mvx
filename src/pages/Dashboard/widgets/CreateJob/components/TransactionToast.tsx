@@ -83,7 +83,7 @@ const ToastItem = ({
         aria-label='View on explorer'
       >
         View
-        <FontAwesomeIcon icon={faExternalLink} />
+        <FontAwesomeIcon icon={faExternalLink} className='text-sm' />
       </a>
     </motion.div>
   );

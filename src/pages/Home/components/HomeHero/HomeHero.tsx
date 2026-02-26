@@ -5,21 +5,21 @@ import { CreateJob } from 'pages/Dashboard/widgets/CreateJob/CreateJob';
 
 export const HomeHero = () => (
   <div className='relative flex flex-col w-full'>
-    {/* Background image — spans the full hero including chat area */}
+    {/* Background image — covers top portion only, not full chat height */}
     <div
-      className='absolute inset-0 left-1/2 -translate-x-1/2 w-screen'
+      className='absolute top-0 left-1/2 -translate-x-1/2 w-screen h-[60%]'
       style={{
         backgroundImage: `url(${heroBg})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center top'
       }}
     />
-    {/* Gradient overlay — slow fade across the entire section */}
+    {/* Gradient overlay — fades image out before it reaches the chat */}
     <div
-      className='absolute inset-0 left-1/2 -translate-x-1/2 w-screen'
+      className='absolute top-0 left-1/2 -translate-x-1/2 w-screen h-[60%]'
       style={{
         background:
-          'linear-gradient(to bottom, color-mix(in srgb, var(--bg-0) 10%, transparent) 0%, color-mix(in srgb, var(--bg-0) 30%, transparent) 25%, color-mix(in srgb, var(--bg-0) 60%, transparent) 50%, color-mix(in srgb, var(--bg-0) 85%, transparent) 70%, var(--bg-0) 90%)'
+          'linear-gradient(to bottom, color-mix(in srgb, var(--bg-0) 10%, transparent) 0%, color-mix(in srgb, var(--bg-0) 25%, transparent) 30%, color-mix(in srgb, var(--bg-0) 55%, transparent) 60%, var(--bg-0) 100%)'
       }}
     />
 
