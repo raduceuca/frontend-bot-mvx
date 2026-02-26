@@ -48,6 +48,9 @@ import { TrackedTransaction, TxStatus } from './createJob.types';
 
 const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
 
+/** API-based task start (streams `delta` events). Use `/start-task-cli` for CLI-style `line` events. */
+const START_TASK_PATH = '/start-task';
+
 // ── Types ──────────────────────────────────────────────────────────
 
 type MessageRole = 'user' | 'agent' | 'system';
@@ -98,6 +101,9 @@ let msgCounter = 0;
 const uid = () => `msg-${++msgCounter}`;
 
 const LOW_BALANCE_THRESHOLD = BigInt('50000000000000000'); // 0.05 EGLD
+
+// eslint-disable-next-line prettier/prettier
+const TASK_GREETING = 'Hello there! 👋 I\'m your helpful MultiversX devnet assistant. I can explain tokens and swaps in plain language, explore devnet data with my MultiversX tools, and help you understand and use features like the mystery box. Ask what you\'re curious about and I\'ll keep it clear and honest.';
 
 const CANCELLATION_SUBSTRINGS = [
   'Transaction canceled',
@@ -179,7 +185,7 @@ const parseAgentResponse = (val: unknown): string => {
 };
 
 const buildSwapPrompt = (userAddress: string, amountAtoms: string) =>
-  `The user at address ${userAddress} just sent ${amountAtoms} atoms of EGLD to the bot. Use the mx-swap-and-return skill:
+  `[MYSTERY_BOX_BUTTON_TRIGGERED] The user at address ${userAddress} just sent ${amountAtoms} atoms of EGLD to the bot. Use the mx-swap-and-return skill:
 
 IMPORTANT: This feature is called "Mystery Box" in our UI. Always refer to it as "Mystery Box".
 
@@ -355,6 +361,37 @@ export const CreateJob = () => {
   const pushMessage = (msg: Omit<ChatMessage, 'id'>) =>
     setMessages((prev) => [...prev, { ...msg, id: uid() }]);
 
+  const appendToLastAgentMessage = (chunk: string) =>
+    setMessages((prev) => {
+      if (!chunk) return prev;
+      if (prev.length === 0) {
+        return [
+          ...prev,
+          {
+            id: uid(),
+            role: 'agent' as const,
+            content: chunk
+          }
+        ];
+      }
+      const last = prev[prev.length - 1];
+      if (last.role !== 'agent' || last.isStatus || last.isError) {
+        return [
+          ...prev,
+          {
+            id: uid(),
+            role: 'agent' as const,
+            content: chunk
+          }
+        ];
+      }
+      const updatedLast: ChatMessage = {
+        ...last,
+        content: `${last.content ?? ''}${chunk}`
+      };
+      return [...prev.slice(0, -1), updatedLast];
+    });
+
   const replaceLastStatus = (content: string, isError = false) =>
     setMessages((prev) => {
       const last = prev[prev.length - 1];
@@ -440,50 +477,75 @@ export const CreateJob = () => {
     []
   );
 
-  // ── Shared polling logic ─────────────────────────────────────────
+  // ── Shared streaming logic (SSE) ─────────────────────────────────
 
-  const pollTask = async (
+  const streamTaskEvents = async (
     taskId: string,
-    opts: { intervalMs?: number; maxAttempts?: number } = {}
+    onStatus: (
+      status: 'completed' | 'failed',
+      result?: string,
+      error?: string
+    ) => void
   ) => {
-    const { intervalMs = 3000, maxAttempts = 60 } = opts;
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      attempts++;
-      const { data: task } = await axios.get(
-        `${TASK_SERVICE_API_URL}/tasks/${taskId}`,
+    try {
+      const res = await fetch(
+        `${TASK_SERVICE_API_URL}/tasks/${taskId}/stream`,
         {
           headers: {
-            Authorization: `Bearer ${tokenLogin?.nativeAuthToken}`
+            Authorization: `Bearer ${tokenLogin?.nativeAuthToken}`,
+            Origin: window.location.origin
           }
         }
       );
 
-      if (task.status === 'verifying') {
-        replaceLastStatus('Confirming payment on-chain\u2026');
-      } else if (task.status === 'processing') {
-        replaceLastStatus('Max is on it\u2026');
-      } else if (task.status === 'completed') {
-        removeLastStatus();
-        pushMessage({
-          role: 'agent',
-          content: parseAgentResponse(task.result)
-        });
-        return { success: true };
-      } else if (task.status === 'failed') {
-        replaceLastStatus(
-          `Something went wrong: ${task.error || 'Unknown error'}`,
-          true
-        );
-        return { success: false };
+      if (!res.ok || !res.body) {
+        throw new Error(res.statusText || 'Stream failed');
       }
 
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let done = false;
 
-    replaceLastStatus('Max timed out. Try again?', true);
-    return { success: false };
+      while (!done) {
+        const readResult = await reader.read();
+        done = readResult.done ?? false;
+        if (done) {
+          break;
+        }
+
+        const { value } = readResult;
+        if (!value) continue;
+
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split('\n\n');
+        buffer = chunks.pop() ?? '';
+
+        for (const chunk of chunks) {
+          const match = chunk.match(/^data: (.+)$/m);
+          if (!match) continue;
+
+          let data: any;
+          try {
+            data = JSON.parse(match[1]);
+          } catch {
+            continue;
+          }
+
+          if (data.event === 'delta' && data.content) {
+            appendToLastAgentMessage(String(data.content));
+          } else if (data.event === 'line' && data.line) {
+            // Fallback for CLI-style line events
+            appendToLastAgentMessage(`${String(data.line)}\n`);
+          } else if (data.event === 'status') {
+            onStatus(data.status, data.result, data.error);
+            return;
+          }
+        }
+      }
+    } catch (err: any) {
+      onStatus('failed', undefined, err?.message || 'Stream connection failed');
+    }
   };
 
   // ── Actions ──────────────────────────────────────────────────────
@@ -511,6 +573,10 @@ export const CreateJob = () => {
       setJobId(newJobId);
       setHasSentTokens(false);
       setPhase('ready');
+      pushMessage({
+        role: 'agent',
+        content: TASK_GREETING
+      });
     } catch (err: any) {
       if (isUserCancellation(err)) {
         setPhase('idle');
@@ -543,7 +609,7 @@ export const CreateJob = () => {
 
     try {
       const { data: initData } = await axios.post(
-        `${TASK_SERVICE_API_URL}/start-task-cli`,
+        `${TASK_SERVICE_API_URL}${START_TASK_PATH}`,
         { jobId, prompt: userText },
         {
           headers: {
@@ -552,8 +618,24 @@ export const CreateJob = () => {
         }
       );
 
-      const result = await pollTask(initData.taskId, { intervalMs: 2000 });
-      setPhase(result.success ? 'ready' : 'error');
+      await streamTaskEvents(initData.taskId, (status, result, error) => {
+        removeLastStatus();
+        if (status === 'completed') {
+          if (result) {
+            pushMessage({
+              role: 'agent',
+              content: parseAgentResponse(result)
+            });
+          }
+          setPhase('ready');
+        } else {
+          replaceLastStatus(
+            `Something went wrong: ${error || 'Unknown error'}`,
+            true
+          );
+          setPhase('error');
+        }
+      });
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || '';
       replaceLastStatus(`Connection lost: ${errorMsg}`, true);
@@ -624,7 +706,7 @@ export const CreateJob = () => {
       const swapPrompt = buildSwapPrompt(userAddress, amountAtoms);
 
       const { data: initData } = await axios.post(
-        `${TASK_SERVICE_API_URL}/start-task-cli`,
+        `${TASK_SERVICE_API_URL}${START_TASK_PATH}`,
         { jobId, prompt: swapPrompt },
         {
           headers: {
@@ -633,9 +715,20 @@ export const CreateJob = () => {
         }
       );
 
-      const result = await pollTask(initData.taskId, { intervalMs: 5000 });
-      setHasSentTokens(true);
-      setPhase(result.success ? 'ready' : 'error');
+      await streamTaskEvents(initData.taskId, (status, _result, error) => {
+        removeLastStatus();
+        if (status === 'completed') {
+          setHasSentTokens(true);
+          setPhase('ready');
+        } else {
+          replaceLastStatus(
+            `Couldn't complete the swap: ${error || 'Unknown error'}`,
+            true
+          );
+          setHasSentTokens(true);
+          setPhase('error');
+        }
+      });
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || '';
       replaceLastStatus(`Couldn't complete the swap: ${errorMsg}`, true);
@@ -964,11 +1057,7 @@ export const CreateJob = () => {
                   aria-live='polite'
                   className={`${styles.badge} bg-warning/10 text-warning border border-warning/20 text-sm`}
                 >
-                  <FontAwesomeIcon
-                    icon={faSpinner}
-                    spin
-                    className='text-sm'
-                  />
+                  <FontAwesomeIcon icon={faSpinner} spin className='text-sm' />
                   {phase === 'creating' && 'Starting'}
                   {phase === 'prompting' && 'Thinking'}
                   {phase === 'sending_tokens' && 'Sending'}
@@ -1037,8 +1126,8 @@ export const CreateJob = () => {
                   Max is ready
                 </p>
                 <p className='text-base text-zinc-500 max-w-sm mx-auto mt-1'>
-                  Connect your wallet to get started. This runs on devnet
-                  — test tokens only, no real money.
+                  Connect your wallet to get started. This runs on devnet — test
+                  tokens only, no real money.
                 </p>
               </div>
 
