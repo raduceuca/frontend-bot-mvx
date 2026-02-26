@@ -1,7 +1,7 @@
 {
-  "name": "MultiversX Bot",
-  "short_name": "MVX Bot",
-  "description": "A powerful MultiversX bot that can help you with many things",
+  "name": "Max — MultiversX Agent",
+  "short_name": "Max",
+  "description": "An autonomous AI agent on MultiversX. It trades, swaps, and transacts on-chain.",
   "icons": [
     {
       "src": "apple-touch-icon.png",
@@ -24,6 +24,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff"
+  "theme_color": "#0a0f0e",
+  "background_color": "#0a0f0e"
 }

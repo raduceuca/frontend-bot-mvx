@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm build-devnet",
+  "outputDirectory": "build",
+  "framework": "vite"
+}

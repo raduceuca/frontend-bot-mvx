@@ -1,7 +1,21 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/typography';
 
 @theme {
   --breakpoint-xs: 30rem;
+
+  /* Teal-tinted greys — subtle teal warmth over neutral zinc */
+  --color-zinc-50: #f4f7f6;
+  --color-zinc-100: #ecf0ee;
+  --color-zinc-200: #dbe1df;
+  --color-zinc-300: #bfc6c4;
+  --color-zinc-400: #8e9896;
+  --color-zinc-500: #62706d;
+  --color-zinc-600: #48524f;
+  --color-zinc-700: #303d3a;
+  --color-zinc-800: #1d2b28;
+  --color-zinc-900: #121a18;
+  --color-zinc-950: #0a0f0e;
 
   --background-color-primary: var(--mvx-bg-color-primary);
   --background-color-secondary: var(--mvx-bg-color-secondary);
@@ -25,8 +39,17 @@
   --color-btn-secondary: var(--mvx-button-text-secondary);
   --color-link: var(--mvx-link-color);
   --color-success: var(--mvx-success-color);
+  --color-warning: var(--warning, #EAB308);
   --color-error: var(--mvx-error-color);
 
   --border-color-secondary: var(--mvx-border-color-secondary);
   --border-color-logo: var(--mvx-text-color-primary);
+}
+
+@utility scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

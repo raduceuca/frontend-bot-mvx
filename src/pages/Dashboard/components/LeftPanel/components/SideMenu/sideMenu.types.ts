@@ -9,5 +9,6 @@ export interface SideMenuPropsType {
 export interface MenuItemsType {
   title: string;
   icon?: IconDefinition | FunctionComponent<SVGProps<SVGSVGElement>>;
+  iconSrc?: string;
   id: ItemsIdentifiersEnum;
 }

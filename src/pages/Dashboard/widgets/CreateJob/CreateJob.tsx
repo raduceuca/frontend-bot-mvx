@@ -1,31 +1,54 @@
 import {
+  faArrowUpRightFromSquare,
+  faBell,
   faBolt,
   faCheckCircle,
   faChevronDown,
   faChevronUp,
-  faComments,
-  faLeaf,
+  faClone,
+  faCoins,
+  faExternalLink,
   faPaperPlane,
-  faRobot,
+  faPowerOff,
   faSpinner,
   faStar,
   faStarHalfStroke,
-  faChartLine,
   faTimesCircle,
   faWallet
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import axios from 'axios';
-import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
+import { motion } from 'motion/react';
+import { MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
+import Markdown from 'react-markdown';
+import { useNavigate } from 'react-router-dom';
+import maxAvatar from 'assets/img/max-avatar.png';
 import { TASK_SERVICE_API_URL } from 'config';
+import { environment } from 'config';
 import {
   useCreateJob,
   useGiveFeedback,
   useSendTokensToBot
 } from 'hooks/transactions';
-import { parseAmount, useGetAccount, useGetLoginInfo } from 'lib';
+import {
+  ACCOUNTS_ENDPOINT,
+  getAccountProvider,
+  NotificationsFeedManager,
+  parseAmount,
+  useGetAccount,
+  useGetLoginInfo,
+  useGetNetworkConfig
+} from 'lib';
+import { EnvironmentsEnum } from 'lib/sdkDapp/sdkDapp.types';
+import { RouteNamesEnum } from 'localConstants';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
+import { Faucet } from 'pages/Dashboard/widgets/Faucet/Faucet';
+import { TransactionActivityBar, TransactionToast } from './components';
+import { TrackedTransaction, TxStatus } from './createJob.types';
+
+const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
+
+// ── Types ──────────────────────────────────────────────────────────
 
 type MessageRole = 'user' | 'agent' | 'system';
 
@@ -37,32 +60,71 @@ interface ChatMessage {
   isError?: boolean;
 }
 
+type JobPhase =
+  | 'idle'
+  | 'creating'
+  | 'ready'
+  | 'prompting'
+  | 'sending_tokens'
+  | 'swapping'
+  | 'rating'
+  | 'error';
+
+// ── Styles ─────────────────────────────────────────────────────────
+
 const styles = {
   container: 'create-job-container flex flex-col gap-4 w-full mx-auto flex-1',
-  glassCard: 'bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden',
-  header: 'px-5 py-4 border-b border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-3',
-  actionButton: 'px-4 py-2.5 rounded-md font-medium text-base transition-colors duration-100 disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20',
-  badge: 'flex items-center gap-1.5 px-2 py-0.5 rounded text-base font-mono'
+  card: 'bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden',
+  btn: 'px-4 py-2.5 rounded-lg font-medium text-base transition-colors duration-150 disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30',
+  badge: 'flex items-center gap-1.5 px-2 py-0.5 rounded-md text-base font-mono',
+  input:
+    'bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-50 font-mono text-base focus:outline-none focus:border-teal/50 focus:ring-1 focus:ring-teal/20 transition-colors duration-150',
+  label:
+    'text-base font-mono font-normal text-zinc-500 uppercase tracking-wider',
+  chipBtn:
+    'px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 whitespace-nowrap',
+  header:
+    'px-5 py-4 border-b border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-3'
 } satisfies Record<string, string>;
+
+const truncateAddress = (address: string) => {
+  if (address.length <= 16) return address;
+  return `${address.slice(0, 8)}...${address.slice(-6)}`;
+};
+
+// ── Helpers ────────────────────────────────────────────────────────
 
 let msgCounter = 0;
 const uid = () => `msg-${++msgCounter}`;
 
-const PERSISTED_JOB_KEY = 'mx_create_job_persisted';
-const PERSISTED_MESSAGES_MAX = 10;
+const LOW_BALANCE_THRESHOLD = BigInt('50000000000000000'); // 0.05 EGLD
 
-interface PersistedMessage {
-  role: MessageRole;
-  content: string;
-  isStatus?: boolean;
-  isError?: boolean;
-}
+const CANCELLATION_SUBSTRINGS = [
+  'Transaction canceled',
+  'Signing canceled',
+  'Transaction signing cancelled by user',
+  'cancelled by user',
+  'denied by the user',
+  'extensionResponse'
+] as const;
+
+const isUserCancellation = (err: unknown): boolean => {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  return CANCELLATION_SUBSTRINGS.some((s) => message.includes(s));
+};
+
+const PERSISTED_JOB_KEY = 'mx_create_job_persisted';
 
 interface PersistedJob {
   jobId: string;
   agentNonce: number;
-  messages: PersistedMessage[];
-  hasSentToBotForJob?: boolean;
+  messages: Array<{
+    role: MessageRole;
+    content: string;
+    isStatus?: boolean;
+    isError?: boolean;
+  }>;
+  hasSentTokens?: boolean;
 }
 
 const loadPersistedJob = (): PersistedJob | null => {
@@ -72,40 +134,28 @@ const loadPersistedJob = (): PersistedJob | null => {
     const data = JSON.parse(raw) as PersistedJob;
     if (typeof data?.jobId !== 'string' || typeof data?.agentNonce !== 'number')
       return null;
-    const messages = Array.isArray(data.messages) ? data.messages : [];
     return {
       jobId: data.jobId,
       agentNonce: data.agentNonce,
-      messages,
-      hasSentToBotForJob: Boolean(data.hasSentToBotForJob)
+      messages: Array.isArray(data.messages) ? data.messages.slice(-10) : [],
+      hasSentTokens: Boolean(data.hasSentTokens)
     };
   } catch {
     return null;
   }
 };
 
-const savePersistedJob = (
-  jobId: string,
-  agentNonce: number,
-  messages: ChatMessage[],
-  hasSentToBotForJob: boolean
-) => {
+const savePersistedJob = (job: PersistedJob) => {
   try {
-    const last = messages.slice(-PERSISTED_MESSAGES_MAX);
-    const persisted: PersistedJob = {
-      jobId,
-      agentNonce,
-      messages: last.map((m) => ({
-        role: m.role,
-        content: m.content,
-        isStatus: m.isStatus,
-        isError: m.isError
-      })),
-      hasSentToBotForJob
-    };
-    sessionStorage.setItem(PERSISTED_JOB_KEY, JSON.stringify(persisted));
+    sessionStorage.setItem(
+      PERSISTED_JOB_KEY,
+      JSON.stringify({
+        ...job,
+        messages: job.messages.slice(-10)
+      })
+    );
   } catch {
-    // ignore
+    /* ignore */
   }
 };
 
@@ -113,7 +163,7 @@ const clearPersistedJob = () => {
   try {
     sessionStorage.removeItem(PERSISTED_JOB_KEY);
   } catch {
-    // ignore
+    /* ignore */
   }
 };
 
@@ -128,80 +178,184 @@ const parseAgentResponse = (val: unknown): string => {
   }
 };
 
+const buildSwapPrompt = (userAddress: string, amountAtoms: string) =>
+  `The user at address ${userAddress} just sent ${amountAtoms} atoms of EGLD to the bot. Use the mx-swap-and-return skill:
+
+IMPORTANT: This feature is called "Mystery Box" in our UI. Always refer to it as "Mystery Box".
+
+1. Save this amount: user address = ${userAddress}, received token = EGLD, amount = ${amountAtoms} atoms.
+2. Call the DEX metadata API (GET the same API base URL as this task service + /dex/metadata, e.g. https://mx-bot-api.elrond.ro/dex/metadata) to get the list of available tradeable tokens.
+3. From the response, pick between 1 and 4 output tokens with reasoning (e.g. liquidity, diversity; exclude the input token). State briefly why you chose each.
+4. Run run_swap_and_return.py with: --user-address ${userAddress} --received-token EGLD --amount ${amountAtoms} --output-tokens <your selected tokens comma-separated>. Use default bot PEM.
+5. The user at ${userAddress} must receive the swapped tokens.
+6. In your final report you MUST include: (a) your reasoning for choosing each output token (why you picked them), and (b) a clear line telling the user to check their wallet for their newly swapped tokens. Report which tokens and amounts were sent.`;
+
+const isBalanceLow = (balance: string) => {
+  try {
+    return BigInt(balance) < LOW_BALANCE_THRESHOLD;
+  } catch {
+    return true;
+  }
+};
+
+// ── Component ──────────────────────────────────────────────────────
+
 export const CreateJob = () => {
+  // Config
   const [agentNonce, setAgentNonce] = useState(110);
   const [serviceId, setServiceId] = useState('1');
-  const [token, setToken] = useState('EGLD');
-  const [nonce, setNonce] = useState(0);
+  const [token] = useState('EGLD');
+  const [nonce] = useState(0);
   const [amount, setAmount] = useState('0.05');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Core state machine
+  const [phase, setPhase] = useState<JobPhase>('idle');
   const [jobId, setJobId] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<
-    'idle' | 'verifying' | 'processing' | 'verified' | 'failed'
-  >('idle');
+  const [hasSentTokens, setHasSentTokens] = useState(false);
 
+  // Chat
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [prompt, setPrompt] = useState('');
-  const [isPrompting, setIsPrompting] = useState(false);
 
-  const [isSendingToBot, setIsSendingToBot] = useState(false);
-  const [isSwapping, setIsSwapping] = useState(false);
-  const [egldAmountToBot, setEgldAmountToBot] = useState('1');
-  const [hasSentToBotForJob, setHasSentToBotForJob] = useState(false);
+  // Faucet panel
+  const [showFaucetPanel, setShowFaucetPanel] = useState(false);
 
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  // Feedback
   const [pendingFeedback, setPendingFeedback] = useState<{
     jobId: string;
     agentNonce: number;
   } | null>(null);
-  const [feedbackRating, setFeedbackRating] = useState<number>(0);
+  const [feedbackRating, setFeedbackRating] = useState(0);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  // Transaction tracking
+  const [trackedTransactions, setTrackedTransactions] = useState<
+    TrackedTransaction[]
+  >([]);
+  const [toasts, setToasts] = useState<
+    Array<{
+      id: string;
+      txHash: string;
+      label: string;
+      amount: string;
+      token: string;
+      status: 'confirmed' | 'failed';
+    }>
+  >([]);
+
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { address: userAddress } = useGetAccount();
+  const { address: userAddress, balance } = useGetAccount();
   const { createJob } = useCreateJob();
   const { sendTokensToBot } = useSendTokensToBot();
   const { giveFeedback } = useGiveFeedback();
-  const { tokenLogin } = useGetLoginInfo();
+  const { isLoggedIn, tokenLogin } = useGetLoginInfo();
+  const { network } = useGetNetworkConfig();
+  const walletProvider = getAccountProvider();
+  const walletNavigate = useNavigate();
+  const [addressCopied, setAddressCopied] = useState(false);
+
+  const handleLogout = useCallback(
+    async (event: MouseEvent) => {
+      event.preventDefault();
+      await walletProvider.logout();
+      walletNavigate(RouteNamesEnum.home);
+    },
+    [walletProvider, walletNavigate]
+  );
+
+  const handleCopyAddress = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(userAddress);
+      setAddressCopied(true);
+      setTimeout(() => setAddressCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }, [userAddress]);
+
+  const handleOpenExplorer = useCallback(() => {
+    const url = `${network.explorerAddress}/${ACCOUNTS_ENDPOINT}/${userAddress}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, [network.explorerAddress, userAddress]);
+
+  const handleNotifications = useCallback((event: MouseEvent) => {
+    event.preventDefault();
+    NotificationsFeedManager.getInstance().openNotificationsFeed();
+  }, []);
+
+  const handleConnect = () => {
+    walletNavigate(RouteNamesEnum.unlock);
+  };
+
+  // Derived
+  const isBusy =
+    phase === 'creating' ||
+    phase === 'prompting' ||
+    phase === 'sending_tokens' ||
+    phase === 'swapping';
+
+  const isDevnet = environment === EnvironmentsEnum.devnet;
+  const needsFunds = isBalanceLow(balance);
+
+  // ── Persistence ──────────────────────────────────────────────────
 
   useEffect(() => {
     const persisted = loadPersistedJob();
     if (persisted?.jobId) {
       setJobId(persisted.jobId);
       setAgentNonce(persisted.agentNonce);
-      setHasSentToBotForJob(persisted.hasSentToBotForJob ?? false);
+      setHasSentTokens(persisted.hasSentTokens ?? false);
+      setPhase('ready');
       if (persisted.messages?.length) {
-        const restored: ChatMessage[] = persisted.messages.map((m) => ({
-          id: uid(),
-          role: m.role,
-          content: m.content,
-          isStatus: m.isStatus,
-          isError: m.isError
-        }));
-        setMessages(restored);
+        setMessages(
+          persisted.messages.map((m) => ({
+            id: uid(),
+            role: m.role,
+            content: m.content,
+            isStatus: m.isStatus,
+            isError: m.isError
+          }))
+        );
       }
     }
   }, []);
 
   useEffect(() => {
     if (jobId) {
-      savePersistedJob(jobId, agentNonce, messages, hasSentToBotForJob);
+      savePersistedJob({
+        jobId,
+        agentNonce,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          isStatus: m.isStatus,
+          isError: m.isError
+        })),
+        hasSentTokens
+      });
     }
-  }, [jobId, agentNonce, messages, hasSentToBotForJob]);
+  }, [jobId, agentNonce, messages, hasSentTokens]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPrompting]);
+    const container = chatContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [messages, phase]);
+
+  // ── Message helpers ──────────────────────────────────────────────
 
   const pushMessage = (msg: Omit<ChatMessage, 'id'>) =>
     setMessages((prev) => [...prev, { ...msg, id: uid() }]);
 
-  const replaceLastSystemStatus = (content: string, isError = false) =>
+  const replaceLastStatus = (content: string, isError = false) =>
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       if (last?.isStatus) {
@@ -212,34 +366,163 @@ export const CreateJob = () => {
       }
       return [
         ...prev,
-        { id: uid(), role: 'system', content, isStatus: !isError, isError }
+        {
+          id: uid(),
+          role: 'system' as const,
+          content,
+          isStatus: !isError,
+          isError
+        }
       ];
     });
 
+  const removeLastStatus = () =>
+    setMessages((prev) =>
+      prev[prev.length - 1]?.isStatus ? prev.slice(0, -1) : prev
+    );
+
+  // ── Transaction tracking helpers ───────────────────────────────
+
+  const txCounter = useRef(0);
+  const txUid = () => `tx-${++txCounter.current}`;
+
+  const toastCounter = useRef(0);
+
+  const fireToast = (
+    tx: { txHash: string; label: string; amount: string; token: string },
+    status: 'confirmed' | 'failed'
+  ) => {
+    setToasts((prev) => [
+      ...prev,
+      { id: `toast-${++toastCounter.current}`, ...tx, status }
+    ]);
+  };
+
+  const trackTransaction = (params: {
+    txHash: string;
+    label: string;
+    amount: string;
+    token: string;
+    status?: TxStatus;
+  }): string => {
+    const id = txUid();
+    const status = params.status ?? 'pending';
+    const newTx: TrackedTransaction = {
+      id,
+      txHash: params.txHash,
+      label: params.label,
+      amount: params.amount,
+      token: params.token,
+      status,
+      timestamp: Date.now()
+    };
+    setTrackedTransactions((prev) => [newTx, ...prev]);
+
+    // Auto-fire toast for transactions tracked with a terminal status
+    if (status === 'confirmed' || status === 'failed') {
+      fireToast(
+        {
+          txHash: params.txHash,
+          label: params.label,
+          amount: params.amount,
+          token: params.token
+        },
+        status
+      );
+    }
+
+    return id;
+  };
+
+  const dismissToast = useCallback(
+    (toastId: string) =>
+      setToasts((prev) => prev.filter((t) => t.id !== toastId)),
+    []
+  );
+
+  // ── Shared polling logic ─────────────────────────────────────────
+
+  const pollTask = async (
+    taskId: string,
+    opts: { intervalMs?: number; maxAttempts?: number } = {}
+  ) => {
+    const { intervalMs = 3000, maxAttempts = 60 } = opts;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      const { data: task } = await axios.get(
+        `${TASK_SERVICE_API_URL}/tasks/${taskId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${tokenLogin?.nativeAuthToken}`
+          }
+        }
+      );
+
+      if (task.status === 'verifying') {
+        replaceLastStatus('Confirming payment on-chain\u2026');
+      } else if (task.status === 'processing') {
+        replaceLastStatus('Max is on it\u2026');
+      } else if (task.status === 'completed') {
+        removeLastStatus();
+        pushMessage({
+          role: 'agent',
+          content: parseAgentResponse(task.result)
+        });
+        return { success: true };
+      } else if (task.status === 'failed') {
+        replaceLastStatus(
+          `Something went wrong: ${task.error || 'Unknown error'}`,
+          true
+        );
+        return { success: false };
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+
+    replaceLastStatus('Max timed out. Try again?', true);
+    return { success: false };
+  };
+
+  // ── Actions ──────────────────────────────────────────────────────
+
   const handleCreateJob = async () => {
     try {
-      setIsCreating(true);
+      setPhase('creating');
       setJobId(null);
-      setVerificationStatus('idle');
       setMessages([]);
 
-      const { jobId: newJobId } = await createJob(agentNonce, serviceId, {
-        token,
-        nonce,
-        amount
+      const { jobId: newJobId, txHash } = await createJob(
+        agentNonce,
+        serviceId,
+        { token, nonce, amount }
+      );
+
+      trackTransaction({
+        txHash,
+        label: 'Job created',
+        amount,
+        token: 'EGLD',
+        status: 'confirmed'
       });
 
       setJobId(newJobId);
-      setHasSentToBotForJob(false);
+      setHasSentTokens(false);
+      setPhase('ready');
     } catch (err: any) {
+      if (isUserCancellation(err)) {
+        setPhase('idle');
+        return;
+      }
       const errorMsg = err.response?.data?.message || err.message || '';
       pushMessage({
         role: 'system',
         content: `Couldn't start the job: ${errorMsg}`,
         isError: true
       });
-    } finally {
-      setIsCreating(false);
+      setPhase('error');
     }
   };
 
@@ -251,16 +534,14 @@ export const CreateJob = () => {
     textareaRef.current?.focus();
 
     pushMessage({ role: 'user', content: userText });
+    setPhase('prompting');
+    pushMessage({
+      role: 'system',
+      content: 'Sending to Max\u2026',
+      isStatus: true
+    });
 
     try {
-      setIsPrompting(true);
-      setVerificationStatus('idle');
-      pushMessage({
-        role: 'system',
-        content: 'Sending your request to the agent\u2026',
-        isStatus: true
-      });
-
       const { data: initData } = await axios.post(
         `${TASK_SERVICE_API_URL}/start-task-cli`,
         { jobId, prompt: userText },
@@ -271,104 +552,122 @@ export const CreateJob = () => {
         }
       );
 
-      const taskId = initData.taskId;
-      let completed = false;
-      let attempts = 0;
-      const maxAttempts = 60;
-
-      while (!completed && attempts < maxAttempts) {
-        attempts++;
-        const { data: task } = await axios.get(
-          `${TASK_SERVICE_API_URL}/tasks/${taskId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${tokenLogin?.nativeAuthToken}`
-            }
-          }
-        );
-
-        if (task.status === 'verifying') {
-          setVerificationStatus('verifying');
-          replaceLastSystemStatus(
-            `Confirming payment on-chain\u2026 (attempt ${attempts})`
-          );
-        } else if (task.status === 'processing') {
-          setVerificationStatus('processing');
-          replaceLastSystemStatus('Agent is working\u2026');
-        } else if (task.status === 'completed') {
-          setVerificationStatus('verified');
-          setMessages((prev) =>
-            prev[prev.length - 1]?.isStatus ? prev.slice(0, -1) : prev
-          );
-          pushMessage({
-            role: 'agent',
-            content: parseAgentResponse(task.result)
-          });
-          completed = true;
-        } else if (task.status === 'failed') {
-          setVerificationStatus('failed');
-          replaceLastSystemStatus(
-            `Something went wrong: ${task.error || 'Unknown error'}`,
-            true
-          );
-          completed = true;
-        }
-
-        if (!completed) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
-      }
-
-      if (!completed) {
-        setVerificationStatus('failed');
-        replaceLastSystemStatus(
-          'The agent took too long to respond. Try again?',
-          true
-        );
-      }
+      const result = await pollTask(initData.taskId, { intervalMs: 2000 });
+      setPhase(result.success ? 'ready' : 'error');
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || '';
-      replaceLastSystemStatus(`Connection lost: ${errorMsg}`, true);
-    } finally {
-      setIsPrompting(false);
+      replaceLastStatus(`Connection lost: ${errorMsg}`, true);
+      setPhase('error');
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (!isPrompting && prompt.trim()) handleSendPrompt();
+  const handleMysteryBox = async (sendAmount = '1') => {
+    if (!userAddress || !jobId) return;
+    if (hasSentTokens) {
+      pushMessage({
+        role: 'agent',
+        content: 'Start a new job if you want me to trade for you again.'
+      });
+      return;
     }
+
+    pushMessage({
+      role: 'system',
+      content: 'Mystery Box starting\u2026',
+      isStatus: true
+    });
+
+    // Step 1: Send tokens to bot (requires signing)
+    try {
+      setPhase('sending_tokens');
+      const { txHash: sendTxHash } = await sendTokensToBot({
+        token: 'EGLD',
+        nonce: 0,
+        amount: sendAmount
+      });
+
+      trackTransaction({
+        txHash: sendTxHash,
+        label: 'EGLD to Max',
+        amount: sendAmount,
+        token: 'EGLD',
+        status: 'confirmed'
+      });
+
+      pushMessage({
+        role: 'system',
+        content: `${sendAmount} EGLD sent to Max. Transaction confirmed.`
+      });
+      pushMessage({
+        role: 'system',
+        content: 'Max is crawling through tokens\u2026',
+        isStatus: true
+      });
+    } catch (err: any) {
+      if (isUserCancellation(err)) {
+        replaceLastStatus(
+          'Token transfer cancelled. Your job is still active \u2014 you can retry.',
+          false
+        );
+      } else {
+        const errorMsg = err.response?.data?.message || err.message || '';
+        replaceLastStatus(`Token transfer failed: ${errorMsg}`, true);
+      }
+      setPhase('ready');
+      return;
+    }
+
+    // Step 2: Trigger the swap (no signing, just API + polling)
+    try {
+      setPhase('swapping');
+      const amountAtoms = parseAmount(sendAmount);
+      const swapPrompt = buildSwapPrompt(userAddress, amountAtoms);
+
+      const { data: initData } = await axios.post(
+        `${TASK_SERVICE_API_URL}/start-task-cli`,
+        { jobId, prompt: swapPrompt },
+        {
+          headers: {
+            Authorization: `Bearer ${tokenLogin?.nativeAuthToken}`
+          }
+        }
+      );
+
+      const result = await pollTask(initData.taskId, { intervalMs: 5000 });
+      setHasSentTokens(true);
+      setPhase(result.success ? 'ready' : 'error');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || '';
+      replaceLastStatus(`Couldn't complete the swap: ${errorMsg}`, true);
+      setHasSentTokens(true);
+      setPhase('error');
+    }
+  };
+
+  const handleFinishJob = () => {
+    if (!jobId) return;
+    setPendingFeedback({ jobId, agentNonce });
+    setFeedbackRating(0);
+    setFeedbackError(null);
+    setPhase('rating');
   };
 
   const resetAll = () => {
     clearPersistedJob();
     setJobId(null);
-    setVerificationStatus('idle');
+    setPhase('idle');
     setMessages([]);
     setPrompt('');
     setAgentNonce(110);
     setServiceId('1');
-    setToken('EGLD');
-    setNonce(0);
     setAmount('0.05');
-    setEgldAmountToBot('1');
-    setHasSentToBotForJob(false);
-  };
-
-  const handleFinishJob = () => {
-    if (!jobId) return;
-    const jobToRate = jobId;
-    const nonceToRate = agentNonce;
-    resetAll();
-    setPendingFeedback({ jobId: jobToRate, agentNonce: nonceToRate });
-    setFeedbackRating(0);
-    setFeedbackError(null);
-    setShowFeedbackModal(true);
+    setHasSentTokens(false);
+    setTrackedTransactions([]);
+    setToasts([]);
   };
 
   const handleCloseFeedbackModal = () => {
-    setShowFeedbackModal(false);
+    resetAll();
     setPendingFeedback(null);
     setFeedbackRating(0);
     setFeedbackError(null);
@@ -379,366 +678,510 @@ export const CreateJob = () => {
     setIsSubmittingFeedback(true);
     setFeedbackError(null);
     try {
-      await giveFeedback(
+      const { txHash } = await giveFeedback(
         pendingFeedback.jobId,
         pendingFeedback.agentNonce,
         feedbackRating
       );
+      if (txHash) {
+        trackTransaction({
+          txHash,
+          label: `Rating: ${feedbackRating}/100`,
+          amount: '0',
+          token: 'EGLD',
+          status: 'confirmed'
+        });
+      }
       handleCloseFeedbackModal();
     } catch (err: any) {
-      setFeedbackError(
-        err?.message ||
-          err?.response?.data?.message ||
-          "Couldn't submit your rating. Try again?"
-      );
+      if (isUserCancellation(err)) {
+        setFeedbackError('Signing cancelled. Your rating was not submitted.');
+      } else {
+        setFeedbackError(
+          err?.message ||
+            err?.response?.data?.message ||
+            'Couldn\u2019t submit your rating. Try again?'
+        );
+      }
     } finally {
       setIsSubmittingFeedback(false);
     }
   };
 
-  const triggerSwapAndReturn = async () => {
-    if (!jobId || !userAddress) return;
-    const amountAtoms = parseAmount(egldAmountToBot);
-    const swapPrompt = `The user at address ${userAddress} just sent ${amountAtoms} atoms of EGLD to the bot. Use the mx-swap-and-return skill:
-
-1. Save this amount: user address = ${userAddress}, received token = EGLD, amount = ${amountAtoms} atoms.
-2. Call the DEX metadata API (GET the same API base URL as this task service + /dex/metadata, e.g. https://mx-bot-api.elrond.ro/dex/metadata) to get the list of available tradeable tokens.
-3. From the response, pick between 1 and 4 output tokens with reasoning (e.g. liquidity, diversity; exclude the input token). State briefly why you chose each.
-4. Run run_swap_and_return.py with: --user-address ${userAddress} --received-token EGLD --amount ${amountAtoms} --output-tokens <your selected tokens comma-separated>. Use default bot PEM.
-5. The user at ${userAddress} must receive the swapped tokens.
-6. In your final report you MUST include: (a) your reasoning for choosing each output token (why you picked them), and (b) a clear line telling the user to check their wallet for their newly swapped tokens. Report which tokens and amounts were sent.`;
-    try {
-      const { data: initData } = await axios.post(
-        `${TASK_SERVICE_API_URL}/start-task-cli`,
-        { jobId, prompt: swapPrompt },
-        {
-          headers: {
-            Authorization: `Bearer ${tokenLogin?.nativeAuthToken}`
-          }
-        }
-      );
-      const taskId = initData.taskId;
-      let completed = false;
-      let attempts = 0;
-      const pollIntervalMs = 5000;
-      const maxAttempts = 60;
-      while (!completed && attempts < maxAttempts) {
-        attempts++;
-        const { data: task } = await axios.get(
-          `${TASK_SERVICE_API_URL}/tasks/${taskId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${tokenLogin?.nativeAuthToken}`
-            }
-          }
-        );
-        if (task.status === 'completed') {
-          setMessages((prev) =>
-            prev[prev.length - 1]?.isStatus ? prev.slice(0, -1) : prev
-          );
-          pushMessage({
-            role: 'agent',
-            content: parseAgentResponse(task.result)
-          });
-          completed = true;
-        } else if (task.status === 'failed') {
-          replaceLastSystemStatus(
-            `Swap didn't go through: ${task.error || 'Unknown error'}`,
-            true
-          );
-          completed = true;
-        } else {
-          replaceLastSystemStatus(`Agent is swapping your tokens\u2026 (${attempts})`);
-        }
-        if (!completed) {
-          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-        }
-      }
-      if (!completed) {
-        replaceLastSystemStatus('The swap took too long. Try again?', true);
-      }
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || '';
-      replaceLastSystemStatus(`Swap didn't go through: ${errorMsg}`, true);
-    } finally {
-      setIsSwapping(false);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!isBusy && prompt.trim()) handleSendPrompt();
     }
   };
 
-  const handleSendTokensToBot = async () => {
-    if (hasSentToBotForJob) {
-      pushMessage({
-        role: 'agent',
-        content:
-          'You need to start a new job if you want me to trade for you again.'
-      });
-      return;
-    }
+  // ── Wallet Bar ───────────────────────────────────────────────────
 
-    setIsSendingToBot(true);
-    try {
-      await sendTokensToBot({
-        token: 'EGLD',
-        nonce: 0,
-        amount: egldAmountToBot
-      });
-      pushMessage({
-        role: 'system',
-        content: `${egldAmountToBot} EGLD sent to bot. Check your wallet for the transaction.`
-      });
-      pushMessage({
-        role: 'system',
-        content: 'Agent is swapping your tokens\u2026',
-        isStatus: true
-      });
-      setIsSwapping(true);
-      await triggerSwapAndReturn();
-      setHasSentToBotForJob(true);
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || '';
-      pushMessage({
-        role: 'system',
-        content: `Couldn't send tokens to the bot: ${errorMsg}`,
-        isError: true
-      });
-    } finally {
-      setIsSendingToBot(false);
-    }
-  };
+  const walletBtn =
+    'flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-300 transition-colors duration-150 cursor-pointer rounded-md px-2 py-1.5 -mx-2 hover:bg-zinc-800/50';
+
+  const renderWalletBar = () => (
+    <div className='px-4 sm:px-5 pb-3 sm:pb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-zinc-800/50 pt-2.5 sm:pt-3'>
+      <div className='flex items-center gap-1.5 min-w-0'>
+        <span className='text-sm font-mono text-zinc-500 truncate min-w-0 max-w-[120px] sm:max-w-none'>
+          {truncateAddress(userAddress)}
+        </span>
+        <button
+          onClick={handleCopyAddress}
+          className={`${walletBtn} whitespace-nowrap ${
+            addressCopied ? 'text-teal hover:text-teal' : ''
+          }`}
+        >
+          <FontAwesomeIcon icon={faClone} className='text-xs' />
+          <span>{addressCopied ? 'Copied' : 'Copy'}</span>
+        </button>
+        <button
+          onClick={handleOpenExplorer}
+          className={`${walletBtn} whitespace-nowrap`}
+          aria-label='Explorer'
+        >
+          <FontAwesomeIcon icon={faExternalLink} className='text-xs' />
+          <span className='hidden sm:inline'>Explorer</span>
+        </button>
+      </div>
+
+      <div className='flex items-center gap-1.5'>
+        <button
+          onClick={handleNotifications}
+          className={walletBtn}
+          aria-label='Notifications'
+        >
+          <FontAwesomeIcon icon={faBell} className='text-xs' />
+        </button>
+        <span className='text-sm font-mono text-zinc-500 bg-zinc-800/60 px-2 py-0.5 rounded-md capitalize'>
+          {network.id}
+        </span>
+        <button
+          onClick={handleLogout}
+          className={`${walletBtn} hover:text-error/80 hover:bg-error/5`}
+          aria-label='Disconnect wallet'
+        >
+          <FontAwesomeIcon icon={faPowerOff} className='text-xs' />
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Quick Actions ────────────────────────────────────────────────
+
+  const actionsDisabled = !isLoggedIn || !jobId;
+
+  const chipClass =
+    'px-3 py-1.5 text-sm text-zinc-400 bg-zinc-800/50 border border-zinc-700/50 rounded-full hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-600 transition-colors duration-150 cursor-pointer disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 whitespace-nowrap shrink-0';
+
+  const renderQuickActions = () => (
+    <div
+      className='relative px-4 sm:px-5 pb-1.5'
+      style={{
+        maskImage:
+          'linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent)',
+        WebkitMaskImage:
+          'linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent)'
+      }}
+    >
+      <div className='flex gap-1.5 overflow-x-auto scrollbar-none'>
+        {/* 1. Mystery Box — primary CTA */}
+        <button
+          onClick={() => handleMysteryBox('1')}
+          disabled={!isLoggedIn || !jobId || isBusy || hasSentTokens}
+          className={`px-3 py-1.5 text-sm border rounded-full transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 ${
+            !isLoggedIn || !jobId
+              ? 'bg-teal/5 text-teal/40 border-teal/10 cursor-default'
+              : 'bg-teal/10 text-teal border-teal/20 hover:bg-teal/20 hover:border-teal/30 cursor-pointer disabled:opacity-40'
+          }`}
+        >
+          <img
+            src={maxAvatar}
+            alt=''
+            className='w-3 h-3 inline-block mr-1 -mt-0.5 rounded-sm'
+          />
+          Mystery Box &middot; 1 EGLD
+        </button>
+
+        {/* 2. Faucet — devnet only */}
+        {isDevnet && (
+          <button
+            onClick={() => setShowFaucetPanel(true)}
+            disabled={!isLoggedIn}
+            className={`${chipClass} ${
+              !isLoggedIn
+                ? 'opacity-40 cursor-default'
+                : needsFunds
+                ? 'bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 hover:border-warning/30'
+                : ''
+            }`}
+          >
+            <FontAwesomeIcon
+              icon={faCoins}
+              className='mr-1 text-warning text-xs'
+            />
+            Get 5 xEGLD
+          </button>
+        )}
+
+        {/* 3. Fun prompts */}
+        <button
+          onClick={() =>
+            setPrompt('Who\u2019s the best user on devnet? Wrong answers only.')
+          }
+          disabled={actionsDisabled || isBusy}
+          className={`${chipClass} ${
+            actionsDisabled ? 'opacity-40 cursor-default' : ''
+          }`}
+        >
+          Best devnet user?
+        </button>
+
+        <button
+          onClick={() =>
+            setPrompt('Pick a random token and convince me to ape in.')
+          }
+          disabled={actionsDisabled || isBusy}
+          className={`${chipClass} ${
+            actionsDisabled ? 'opacity-40 cursor-default' : ''
+          }`}
+        >
+          Shill me something
+        </button>
+
+        <button
+          onClick={() =>
+            setPrompt('What would you do with 100 EGLD and zero morals?')
+          }
+          disabled={actionsDisabled || isBusy}
+          className={`${chipClass} ${
+            actionsDisabled ? 'opacity-40 cursor-default' : ''
+          }`}
+        >
+          100 EGLD, zero morals
+        </button>
+
+        <button
+          onClick={() => setPrompt('Rate my wallet. Be brutally honest.')}
+          disabled={actionsDisabled || isBusy}
+          className={`${chipClass} ${
+            actionsDisabled ? 'opacity-40 cursor-default' : ''
+          }`}
+        >
+          Rate my wallet
+        </button>
+
+        <button
+          onClick={() =>
+            setPrompt('Write a haiku about gas fees on MultiversX.')
+          }
+          disabled={actionsDisabled || isBusy}
+          className={`${chipClass} ${
+            actionsDisabled ? 'opacity-40 cursor-default' : ''
+          }`}
+        >
+          Haiku about gas fees
+        </button>
+
+        <button
+          onClick={() =>
+            setPrompt(
+              'If every token on MultiversX was a person at a party, describe the vibe.'
+            )
+          }
+          disabled={actionsDisabled || isBusy}
+          className={`${chipClass} ${
+            actionsDisabled ? 'opacity-40 cursor-default' : ''
+          }`}
+        >
+          Tokens at a party
+        </button>
+
+        <button
+          onClick={() =>
+            setPrompt('Explain what you do like I\u2019m a golden retriever.')
+          }
+          disabled={actionsDisabled || isBusy}
+          className={`${chipClass} ${
+            actionsDisabled ? 'opacity-40 cursor-default' : ''
+          }`}
+        >
+          Explain like I&apos;m a golden retriever
+        </button>
+
+        <button
+          onClick={() =>
+            setPrompt(
+              'Give me a mass-adoption conspiracy theory that sounds almost plausible.'
+            )
+          }
+          disabled={actionsDisabled || isBusy}
+          className={`${chipClass} ${
+            actionsDisabled ? 'opacity-40 cursor-default' : ''
+          }`}
+        >
+          Crypto conspiracy theory
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Render ───────────────────────────────────────────────────────
 
   return (
     <div id={ItemsIdentifiersEnum.createJob} className={styles.container}>
-      {/* Configuration Header */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15 }}
-        className={styles.glassCard}
+        className={`${styles.card} flex flex-col min-h-[360px] sm:min-h-[480px]`}
       >
-        <div className={styles.header}>
-          <div>
-            <h2 className='text-lg font-semibold text-zinc-50 tracking-tight'>
-              MultiversX Bot
-            </h2>
-            <p className='text-base text-zinc-500'>Launch a new job</p>
+        {/* ── Chat header ── */}
+        <div className='px-4 sm:px-5 py-3 border-b border-zinc-800 flex items-center justify-between'>
+          <div className='flex items-center gap-2.5'>
+            <div className='relative'>
+              <img src={maxAvatar} alt='Max' className='w-8 h-8 rounded-lg' />
+              {jobId && (
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-zinc-900 ${
+                    isBusy ? 'bg-warning animate-pulse' : 'bg-success'
+                  }`}
+                  aria-hidden='true'
+                />
+              )}
+            </div>
+            <div className='flex items-center gap-2'>
+              <span className='text-base font-medium text-zinc-50'>Max</span>
+              {jobId && !isBusy && (
+                <span className='text-xs font-mono text-success/80 bg-success/10 border border-success/15 px-1.5 py-0.5 rounded-md hidden sm:flex items-center gap-1'>
+                  <span className='w-1 h-1 rounded-full bg-success' />
+                  Active Job
+                </span>
+              )}
+              {isBusy && (
+                <div
+                  role='status'
+                  aria-live='polite'
+                  className={`${styles.badge} bg-warning/10 text-warning border border-warning/20 text-xs`}
+                >
+                  <FontAwesomeIcon
+                    icon={faSpinner}
+                    spin
+                    className='text-[0.6rem]'
+                  />
+                  {phase === 'creating' && 'Starting'}
+                  {phase === 'prompting' && 'Thinking'}
+                  {phase === 'sending_tokens' && 'Sending'}
+                  {phase === 'swapping' && 'Crawling'}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className='flex items-center gap-3 flex-wrap'>
+          <div className='flex items-center gap-2'>
             {jobId && (
-              <>
-                <div className='flex items-center gap-2 flex-wrap'>
-                  <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
-                    EGLD:
-                  </span>
-                  <input
-                    type='text'
-                    value={egldAmountToBot}
-                    onChange={(e) => setEgldAmountToBot(e.target.value)}
-                    placeholder='Amount'
-                    className='bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-zinc-50 font-mono text-base w-24 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors duration-100'
-                  />
-                </div>
-                <button
-                  disabled={
-                    isCreating || isPrompting || isSendingToBot || isSwapping
-                  }
-                  onClick={handleSendTokensToBot}
-                  className={`${styles.actionButton} bg-violet-600 hover:bg-violet-500 text-white min-w-[160px]`}
-                >
-                  {isSendingToBot ? (
-                    <div className='flex items-center justify-center gap-2'>
-                      <FontAwesomeIcon icon={faSpinner} spin /> SENDING\u2026
-                    </div>
-                  ) : isSwapping ? (
-                    <div className='flex items-center justify-center gap-2'>
-                      <FontAwesomeIcon icon={faSpinner} spin /> SWAPPING\u2026
-                    </div>
-                  ) : (
-                    <div className='flex items-center justify-center gap-2'>
-                      <FontAwesomeIcon icon={faWallet} /> SEND TO BOT
-                    </div>
-                  )}
-                </button>
-                <button
-                  disabled={isCreating || isPrompting}
-                  onClick={handleFinishJob}
-                  className={`${styles.actionButton} bg-zinc-800 hover:bg-zinc-700 text-zinc-50 border border-zinc-700 min-w-[140px]`}
-                >
-                  <div className='flex items-center justify-center gap-2'>
-                    <FontAwesomeIcon icon={faCheckCircle} /> FINISH JOB
-                  </div>
-                </button>
-              </>
-            )}
-            {!jobId && (
               <button
-                disabled={isCreating}
-                onClick={handleCreateJob}
-                className={`${styles.actionButton} bg-emerald-500 hover:bg-emerald-400 text-emerald-950 min-w-[160px]`}
+                disabled={isBusy}
+                onClick={handleFinishJob}
+                className={`${styles.btn} bg-zinc-800 hover:bg-zinc-700 text-zinc-50 border border-zinc-700`}
               >
-                {isCreating ? (
+                <div className='flex items-center justify-center gap-2'>
+                  <FontAwesomeIcon icon={faCheckCircle} /> Finish
+                </div>
+              </button>
+            )}
+
+            {!isLoggedIn && (
+              <div className='text-sm font-mono text-zinc-500 bg-zinc-800/60 px-2 py-0.5 rounded-md capitalize'>
+                {network.id}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Transaction Activity Bar ── */}
+        {trackedTransactions.length > 0 && (
+          <TransactionActivityBar
+            transactions={trackedTransactions}
+            explorerAddress={network.explorerAddress}
+          />
+        )}
+
+        {/* ── Messages / Empty State ── */}
+        <div
+          ref={chatContainerRef}
+          role='log'
+          aria-live='polite'
+          aria-label='Chat with Max'
+          className='flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-5 py-4 flex flex-col gap-3'
+        >
+          {/* Transaction confirmation toasts */}
+          {toasts.length > 0 && (
+            <TransactionToast
+              toasts={toasts}
+              explorerAddress={network.explorerAddress}
+              onDismiss={dismissToast}
+            />
+          )}
+
+          {!isLoggedIn ? (
+            /* State 1: Not logged in — Connect Wallet CTA */
+            <div className='flex-1 flex flex-col items-center justify-center gap-5 py-12'>
+              <img
+                src={maxAvatar}
+                alt='Max'
+                className='w-16 h-16 rounded-xl opacity-60'
+              />
+              <div className='text-center'>
+                <p className='text-base font-medium text-zinc-50'>
+                  Max is ready
+                </p>
+                <p className='text-base text-zinc-500 max-w-sm mx-auto mt-1'>
+                  Connect your wallet to get started.
+                </p>
+              </div>
+
+              {/* Connect Wallet + Agent Profile — matched height */}
+              <div className='flex items-stretch gap-2'>
+                <button
+                  onClick={handleConnect}
+                  className={`${styles.btn} bg-teal hover:bg-teal/80 text-zinc-950 flex items-center justify-center gap-2`}
+                >
+                  <FontAwesomeIcon icon={faWallet} /> Connect Wallet
+                </button>
+
+                <a
+                  href={AGENT_PROFILE_URL}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='group flex items-center gap-2.5 bg-zinc-800/60 border border-zinc-700/50 hover:border-teal/30 rounded-lg px-3 transition-all duration-150'
+                >
+                  <img
+                    src={maxAvatar}
+                    alt='Max'
+                    className='w-7 h-7 rounded-md shrink-0'
+                  />
+                  <div className='flex flex-col items-start leading-tight'>
+                    <span className='text-sm font-medium text-zinc-50'>
+                      Max
+                    </span>
+                    <span className='text-[0.65rem] text-zinc-500 font-mono'>
+                      AI Agent on MultiversX
+                    </span>
+                  </div>
+                  <FontAwesomeIcon
+                    icon={faArrowUpRightFromSquare}
+                    className='w-2.5 h-2.5 text-zinc-600 group-hover:text-teal transition-colors duration-150'
+                    aria-hidden='true'
+                  />
+                </a>
+              </div>
+            </div>
+          ) : !jobId ? (
+            /* State 2: Logged in, no active job — Start Job CTA */
+            <div className='flex-1 flex flex-col items-center justify-center gap-4 py-8'>
+              <img
+                src={maxAvatar}
+                alt='Max'
+                className='w-12 h-12 rounded-xl opacity-60'
+              />
+              <div className='text-center'>
+                <p className='text-base font-medium text-zinc-50'>
+                  Start a job with Max
+                </p>
+                <p className='text-base text-zinc-500 max-w-sm mx-auto mt-1'>
+                  Pay {amount} EGLD to activate Max. Ask anything, trigger
+                  swaps, or try a Mystery Box.
+                </p>
+              </div>
+
+              <button
+                disabled={phase === 'creating'}
+                onClick={handleCreateJob}
+                className={`${styles.btn} bg-teal hover:bg-teal/80 text-zinc-950 min-w-[200px]`}
+              >
+                {phase === 'creating' ? (
                   <div className='flex items-center justify-center gap-2'>
-                    <FontAwesomeIcon icon={faSpinner} spin /> STARTING\u2026
+                    <FontAwesomeIcon icon={faSpinner} spin /> Starting&hellip;
                   </div>
                 ) : (
                   <div className='flex items-center justify-center gap-2'>
-                    <FontAwesomeIcon icon={faBolt} /> START JOB
+                    <FontAwesomeIcon icon={faBolt} /> Start Job &middot;{' '}
+                    {amount} EGLD
                   </div>
                 )}
               </button>
-            )}
-          </div>
-        </div>
 
-        <div className='px-5 py-3 flex items-center justify-between'>
-          <div className='flex items-center gap-4'>
-            <div className='flex items-center gap-2'>
-              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
-                Token
-              </span>
-              <span className='text-base font-mono text-zinc-50'>{token}</span>
-            </div>
-            <div className='flex items-center gap-2'>
-              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
-                Cost
-              </span>
-              <span className='text-base font-mono text-zinc-50'>{amount} EGLD</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowAdvanced((prev) => !prev)}
-            className='text-base text-zinc-500 hover:text-zinc-50 transition-colors duration-100 flex items-center gap-1 cursor-pointer'
-          >
-            Advanced
-            <FontAwesomeIcon icon={showAdvanced ? faChevronUp : faChevronDown} />
-          </button>
-        </div>
+              {/* Advanced settings toggle */}
+              <button
+                onClick={() => setShowAdvanced((prev) => !prev)}
+                className='text-base text-zinc-500 hover:text-zinc-50 transition-colors duration-150 flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 rounded-lg px-3 py-2'
+                aria-expanded={showAdvanced}
+                aria-controls='advanced-config'
+              >
+                Advanced
+                <FontAwesomeIcon
+                  icon={showAdvanced ? faChevronUp : faChevronDown}
+                />
+              </button>
 
-        {showAdvanced && (
-          <div className='px-5 pb-4 grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-zinc-800 pt-3'>
-            <div className='flex flex-col gap-1'>
-              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
-                Agent Nonce
-              </span>
-              <input
-                type='number'
-                value={agentNonce}
-                onChange={(e) => setAgentNonce(Number(e.target.value))}
-                className='bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-50 font-mono text-base focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors duration-100'
-              />
-            </div>
-            <div className='flex flex-col gap-1'>
-              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
-                Service ID
-              </span>
-              <input
-                type='text'
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                className='bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-50 font-mono text-base focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors duration-100'
-              />
-            </div>
-            <div className='flex flex-col gap-1'>
-              <span className='text-base font-mono font-normal text-zinc-500 uppercase tracking-wider'>
-                Token Nonce
-              </span>
-              <input
-                type='number'
-                value={nonce}
-                onChange={(e) => setNonce(Number(e.target.value))}
-                className='bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-50 font-mono text-base focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-colors duration-100'
-              />
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Chat */}
-      <AnimatePresence mode='wait'>
-        {jobId ? (
-          <motion.div
-            key='chat-active'
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className={`${styles.glassCard} flex flex-col`}
-            style={{ minHeight: '520px' }}
-          >
-            {/* Chat header */}
-            <div className='px-5 py-3 border-b border-zinc-800 flex items-center justify-between'>
-              <div className='flex items-center gap-2.5'>
-                <div className='w-8 h-8 rounded-md bg-zinc-800 text-emerald-400 flex items-center justify-center'>
-                  <FontAwesomeIcon icon={faRobot} />
-                </div>
-                <div>
-                  <div className='text-base font-medium text-zinc-50'>Agent Chat</div>
-                  <div className='text-base font-mono text-zinc-500 truncate max-w-[260px]'>
-                    Job: {jobId}
+              {showAdvanced && (
+                <div
+                  id='advanced-config'
+                  className='w-full max-w-md grid grid-cols-1 md:grid-cols-3 gap-3'
+                >
+                  <div className='flex flex-col gap-1'>
+                    <label htmlFor='agent-nonce' className={styles.label}>
+                      Agent Nonce
+                    </label>
+                    <input
+                      id='agent-nonce'
+                      type='number'
+                      value={agentNonce}
+                      onChange={(e) => setAgentNonce(Number(e.target.value))}
+                      className={styles.input}
+                    />
+                  </div>
+                  <div className='flex flex-col gap-1'>
+                    <label htmlFor='service-id' className={styles.label}>
+                      Service ID
+                    </label>
+                    <input
+                      id='service-id'
+                      type='text'
+                      value={serviceId}
+                      onChange={(e) => setServiceId(e.target.value)}
+                      className={styles.input}
+                    />
+                  </div>
+                  <div className='flex flex-col gap-1'>
+                    <label htmlFor='job-cost' className={styles.label}>
+                      Job Cost (EGLD)
+                    </label>
+                    <input
+                      id='job-cost'
+                      type='text'
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className={styles.input}
+                    />
                   </div>
                 </div>
-              </div>
-
-              <div>
-                {(verificationStatus === 'verifying' ||
-                  verificationStatus === 'processing') && (
-                  <div
-                    className={`${styles.badge} bg-amber-500/10 text-amber-400 border border-amber-500/20`}
-                  >
-                    <FontAwesomeIcon icon={faSpinner} spin />
-                    {verificationStatus === 'verifying'
-                      ? 'Syncing'
-                      : 'Processing'}
-                  </div>
-                )}
-                {verificationStatus === 'verified' && (
-                  <div
-                    className={`${styles.badge} bg-emerald-500/10 text-emerald-400 border border-emerald-500/20`}
-                  >
-                    <FontAwesomeIcon icon={faCheckCircle} /> Ready
-                  </div>
-                )}
-                {verificationStatus === 'failed' && (
-                  <div
-                    className={`${styles.badge} bg-red-500/10 text-red-400 border border-red-500/20`}
-                  >
-                    <FontAwesomeIcon icon={faTimesCircle} /> Failed
-                  </div>
-                )}
-              </div>
+              )}
             </div>
-
-            {/* Message list */}
-            <div className='flex-1 overflow-y-auto custom-scrollbar px-5 py-4 flex flex-col gap-3'>
+          ) : (
+            /* State 3: Active job — messages or idle */
+            <>
               {messages.length === 0 && (
-                <div className='flex-1 flex flex-col items-center justify-center gap-3 py-16'>
-                  <FontAwesomeIcon
-                    icon={faRobot}
-                    className='text-3xl text-zinc-600'
+                <div className='flex-1 flex flex-col items-center justify-center gap-3 py-12'>
+                  <img
+                    src={maxAvatar}
+                    alt='Max'
+                    className='w-10 h-10 rounded-lg opacity-60'
                   />
                   <span className='text-base text-zinc-500'>
-                    Your agent is standing by
+                    Max is standing by
                   </span>
-                  <div className='flex flex-wrap gap-2 mt-4 justify-center'>
-                    <button
-                      onClick={() => setPrompt('Start a Token Safari \u2014 explore trending tokens')}
-                      className='px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-md hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
-                    >
-                      <FontAwesomeIcon icon={faLeaf} className='mr-1.5 text-emerald-400' /> Token Safari
-                    </button>
-                    <button
-                      onClick={() => setPrompt('What can you do?')}
-                      className='px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-md hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
-                    >
-                      <FontAwesomeIcon icon={faComments} className='mr-1.5 text-zinc-500' /> What can you do?
-                    </button>
-                    <button
-                      onClick={() => setPrompt('Show me trending tokens on devnet')}
-                      className='px-3 py-1.5 text-base text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-md hover:bg-zinc-800 hover:text-zinc-50 hover:border-zinc-700 transition-colors duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
-                    >
-                      <FontAwesomeIcon icon={faChartLine} className='mr-1.5 text-zinc-500' /> Trending tokens
-                    </button>
-                  </div>
                 </div>
               )}
 
@@ -750,10 +1193,10 @@ export const CreateJob = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.15 }}
-                      className='flex justify-end'
+                      className='flex justify-end max-w-[90%] sm:max-w-[80%] ml-auto'
                     >
-                      <div className='max-w-[75%] bg-zinc-800 text-zinc-50 rounded-lg rounded-br-sm px-3 py-2.5 text-base'>
-                        {msg.content}
+                      <div className='bg-zinc-800 text-zinc-50 rounded-2xl rounded-tr-md px-5 py-3 text-base prose prose-invert prose-sm prose-p:my-1 prose-headings:my-2 prose-code:text-teal max-w-none'>
+                        <Markdown>{msg.content}</Markdown>
                       </div>
                     </motion.div>
                   );
@@ -766,18 +1209,21 @@ export const CreateJob = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.15 }}
-                      className='flex justify-start gap-2.5'
+                      className='flex justify-start gap-3 max-w-[95%] sm:max-w-[80%]'
                     >
-                      <div className='w-7 h-7 shrink-0 mt-0.5 rounded-md bg-zinc-800 flex items-center justify-center text-emerald-400'>
-                        <FontAwesomeIcon icon={faRobot} />
-                      </div>
-                      <div className='max-w-[75%] bg-zinc-900 border border-zinc-800 text-zinc-50 rounded-lg rounded-bl-sm px-3 py-2.5 text-base whitespace-pre-wrap'>
-                        {msg.content}
+                      <img
+                        src={maxAvatar}
+                        alt=''
+                        className='w-8 h-8 shrink-0 mt-1 rounded-lg'
+                      />
+                      <div className='bg-zinc-800 border border-zinc-700/50 text-zinc-50 rounded-2xl rounded-tl-md px-5 py-4 text-base prose prose-invert prose-sm prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-2 prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-lg prose-code:text-teal prose-a:text-teal prose-a:no-underline hover:prose-a:underline max-w-none'>
+                        <Markdown>{msg.content}</Markdown>
                       </div>
                     </motion.div>
                   );
                 }
 
+                // System message
                 return (
                   <motion.div
                     key={msg.id}
@@ -787,160 +1233,253 @@ export const CreateJob = () => {
                     className='flex justify-center'
                   >
                     <div
+                      role={msg.isError ? 'alert' : undefined}
                       className={`flex items-center gap-2 text-base ${
                         msg.isError
-                          ? 'text-red-400'
+                          ? 'text-error'
                           : msg.isStatus
-                            ? 'text-zinc-500'
-                            : 'text-zinc-400'
+                          ? 'text-zinc-500'
+                          : 'text-zinc-400'
                       }`}
                     >
                       {msg.isStatus && (
-                        <div className='w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse' />
+                        <div className='w-1.5 h-1.5 rounded-full bg-teal animate-pulse' />
                       )}
-                      {msg.isError && (
-                        <span>&times;</span>
-                      )}
+                      {msg.isError && <FontAwesomeIcon icon={faTimesCircle} />}
                       {msg.content}
                     </div>
                   </motion.div>
                 );
               })}
 
-              {isPrompting && (
+              {/* Thinking indicator — visible during all busy phases */}
+              {isBusy && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.15 }}
-                  className='flex justify-start gap-2.5'
+                  className='flex justify-start gap-3'
                 >
-                  <div className='w-7 h-7 shrink-0 mt-0.5 rounded-md bg-zinc-800 flex items-center justify-center text-emerald-400'>
-                    <FontAwesomeIcon icon={faRobot} />
-                  </div>
-                  <div className='bg-zinc-900 border border-zinc-800 rounded-lg rounded-bl-sm px-3 py-2.5 flex items-center gap-1.5'>
-                    <span className='w-1.5 h-1.5 bg-zinc-500 rounded-full animate-pulse' />
-                    <span className='w-1.5 h-1.5 bg-zinc-500 rounded-full animate-pulse [animation-delay:150ms]' />
-                    <span className='w-1.5 h-1.5 bg-zinc-500 rounded-full animate-pulse [animation-delay:300ms]' />
+                  <img
+                    src={maxAvatar}
+                    alt=''
+                    className='w-8 h-8 shrink-0 mt-1 rounded-lg'
+                  />
+                  <div
+                    role='status'
+                    aria-label='Max is thinking'
+                    className='bg-zinc-800 border border-zinc-700/50 rounded-2xl rounded-tl-md px-5 py-4 flex items-center gap-2 text-base text-zinc-400'
+                  >
+                    <FontAwesomeIcon
+                      icon={faSpinner}
+                      spin
+                      className='text-teal'
+                    />
+                    <span>
+                      {phase === 'creating' && 'Starting up\u2026'}
+                      {phase === 'prompting' && 'Thinking\u2026'}
+                      {phase === 'sending_tokens' && 'Sending tokens\u2026'}
+                      {phase === 'swapping' && 'Crawling through tokens\u2026'}
+                    </span>
                   </div>
                 </motion.div>
               )}
+            </>
+          )}
+        </div>
 
-              <div ref={bottomRef} />
-            </div>
+        {/* ── Quick actions (always visible) ── */}
+        {renderQuickActions()}
 
-            {/* Input bar */}
-            <div className='px-5 pb-5 pt-3'>
-              <div className='flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/20 transition-colors duration-100'>
-                <textarea
-                  ref={textareaRef}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  rows={1}
-                  className='flex-1 bg-transparent border-none p-0 text-base text-zinc-50 placeholder:text-zinc-600 focus:outline-none focus:ring-0 resize-none leading-relaxed max-h-32 overflow-y-auto custom-scrollbar'
-                  placeholder='Tell the agent what to do\u2026'
-                />
-                <button
-                  disabled={isPrompting || !prompt.trim()}
-                  onClick={handleSendPrompt}
-                  className='shrink-0 w-9 h-9 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 rounded-md flex items-center justify-center transition-colors duration-100 disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/20'
-                >
-                  {isPrompting ? (
-                    <FontAwesomeIcon icon={faSpinner} spin />
-                  ) : (
-                    <FontAwesomeIcon icon={faPaperPlane} />
-                  )}
-                </button>
+        {/* ── Input bar ── */}
+        <div className='px-4 sm:px-5 pb-3 sm:pb-4 pt-1'>
+          {!isLoggedIn ? (
+            <button
+              onClick={handleConnect}
+              className='w-full flex items-center gap-3 bg-zinc-950 border border-zinc-700/50 rounded-xl px-4 py-3 cursor-pointer hover:border-zinc-600 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
+            >
+              <span className='flex-1 text-base text-zinc-500 text-left'>
+                Connect wallet to talk to Max&hellip;
+              </span>
+              <div className='shrink-0 w-10 h-10 bg-teal/20 text-teal rounded-lg flex items-center justify-center'>
+                <FontAwesomeIcon icon={faWallet} />
               </div>
+            </button>
+          ) : !jobId ? (
+            <button
+              onClick={handleCreateJob}
+              disabled={phase === 'creating'}
+              className='w-full flex items-center gap-3 bg-zinc-950 border border-zinc-700/50 rounded-xl px-4 py-3 cursor-pointer hover:border-zinc-600 transition-colors duration-150 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
+            >
+              <span className='flex-1 text-base text-zinc-500 text-left'>
+                Start a job to talk to Max&hellip;
+              </span>
+              <div className='shrink-0 w-10 h-10 bg-teal/20 text-teal rounded-lg flex items-center justify-center'>
+                <FontAwesomeIcon icon={faBolt} />
+              </div>
+            </button>
+          ) : (
+            <div className='flex items-end gap-3 bg-zinc-950 border border-zinc-700/50 rounded-xl px-4 py-3 focus-within:border-teal/40 focus-within:ring-2 focus-within:ring-teal/20 transition-colors duration-150'>
+              <label htmlFor='agent-prompt' className='sr-only'>
+                Message to Max
+              </label>
+              <textarea
+                id='agent-prompt'
+                ref={textareaRef}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                className='flex-1 bg-transparent border-none p-0 text-base text-zinc-50 placeholder:text-zinc-500 focus:outline-none focus:ring-0 resize-none leading-relaxed max-h-32 overflow-y-auto custom-scrollbar'
+                placeholder='Tell Max what to do&hellip;'
+              />
+              <button
+                disabled={isBusy || !prompt.trim()}
+                onClick={handleSendPrompt}
+                aria-label='Send message'
+                className='shrink-0 w-10 h-10 bg-teal hover:bg-teal/80 text-zinc-950 rounded-lg flex items-center justify-center transition-colors duration-150 disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
+              >
+                {isBusy ? (
+                  <FontAwesomeIcon icon={faSpinner} spin />
+                ) : (
+                  <FontAwesomeIcon icon={faPaperPlane} />
+                )}
+              </button>
             </div>
-          </motion.div>
-        ) : (
+          )}
+        </div>
+
+        {/* ── Wallet bar (logged in only) ── */}
+        {isLoggedIn && renderWalletBar()}
+      </motion.div>
+
+      {/* Faucet panel */}
+      {showFaucetPanel && (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 overflow-y-auto'
+          role='dialog'
+          aria-modal='true'
+          aria-labelledby='faucet-title'
+        >
           <motion.div
-            key='execution-idle'
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
-            className='flex-1 py-12 flex flex-col items-center justify-center text-center gap-4'
+            className='bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-6 flex flex-col gap-5'
           >
-            <div className='w-16 h-16 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600'>
-              <FontAwesomeIcon icon={faRobot} className='text-3xl' />
-            </div>
             <div>
-              <p className='text-base font-medium text-zinc-50'>Agent Idle</p>
-              <p className='text-base text-zinc-500 max-w-sm mx-auto mt-1'>
-                Hit &ldquo;Start Job&rdquo; above to put the agent to work.
+              <h3
+                id='faucet-title'
+                className='text-lg font-semibold text-zinc-50 tracking-tight'
+              >
+                Devnet Faucet
+              </h3>
+              <p className='text-base text-zinc-400 mt-2 leading-relaxed'>
+                Get 5 xEGLD — test tokens with no real value. Use them to start
+                jobs, try a Mystery Box, and do everything Max can do. One
+                request every 24 hours.
               </p>
             </div>
+
+            <Faucet />
+
+            <button
+              type='button'
+              onClick={() => setShowFaucetPanel(false)}
+              className='text-base text-zinc-500 hover:text-zinc-300 transition-colors duration-150 cursor-pointer self-center rounded-lg px-4 py-2.5 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
+            >
+              Close
+            </button>
           </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
       {/* Feedback modal */}
-      {showFeedbackModal && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60'>
+      {phase === 'rating' && pendingFeedback && (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 overflow-y-auto'
+          role='dialog'
+          aria-modal='true'
+          aria-labelledby='feedback-title'
+        >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
-            className='bg-zinc-900 border border-zinc-800 rounded-lg max-w-sm w-full p-6 flex flex-col gap-4'
+            className='bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full p-6 flex flex-col gap-4'
           >
-            <h3 className='text-lg font-semibold text-zinc-50 tracking-tight'>
-              Rate your experience
+            <h3
+              id='feedback-title'
+              className='text-lg font-semibold text-zinc-50 tracking-tight'
+            >
+              How did Max do?
             </h3>
             <p className='text-base text-zinc-500 leading-relaxed'>
-              How did the agent do? Your rating goes on-chain.
+              Your rating goes on-chain and helps improve the agent.
             </p>
-            <div className='flex items-center gap-0.5'>
-              {[0, 1, 2, 3, 4].map((starIndex) => {
-                const halfValue = starIndex * 20 + 10;
-                const fullValue = (starIndex + 1) * 20;
-                const showFull = feedbackRating >= fullValue;
-                const showHalf = feedbackRating >= halfValue && !showFull;
-                const filled = showFull || showHalf;
-                return (
-                  <div key={starIndex} className='relative flex w-10'>
-                    <span
-                      className={`pointer-events-none text-2xl transition-colors ${
-                        filled ? 'text-amber-400' : 'text-zinc-700'
-                      }`}
-                    >
-                      {showFull ? (
-                        <FontAwesomeIcon icon={faStar} />
-                      ) : showHalf ? (
-                        <FontAwesomeIcon icon={faStarHalfStroke} />
-                      ) : (
-                        <FontAwesomeIcon icon={faStar} />
-                      )}
-                    </span>
-                    <button
-                      type='button'
-                      onClick={() => setFeedbackRating(halfValue)}
-                      className='absolute left-0 top-0 w-1/2 h-full cursor-pointer'
-                      aria-label={`${starIndex + 0.5} stars`}
-                    />
-                    <button
-                      type='button'
-                      onClick={() => setFeedbackRating(fullValue)}
-                      className='absolute left-1/2 top-0 w-1/2 h-full cursor-pointer'
-                      aria-label={`${starIndex + 1} stars`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-            <p className='text-base text-zinc-500 font-mono'>
+
+            {/* Star rating */}
+            <fieldset aria-label='Rate Max'>
+              <legend className='sr-only'>
+                Rate Max from 10 to 100 points
+              </legend>
+              <div className='flex items-center gap-0.5'>
+                {[0, 1, 2, 3, 4].map((starIndex) => {
+                  const halfValue = starIndex * 20 + 10;
+                  const fullValue = (starIndex + 1) * 20;
+                  const showFull = feedbackRating >= fullValue;
+                  const showHalf = feedbackRating >= halfValue && !showFull;
+                  const filled = showFull || showHalf;
+                  return (
+                    <div key={starIndex} className='relative flex w-10'>
+                      <span
+                        className={`pointer-events-none text-2xl transition-colors ${
+                          filled ? 'text-warning' : 'text-zinc-700'
+                        }`}
+                      >
+                        {showFull ? (
+                          <FontAwesomeIcon icon={faStar} />
+                        ) : showHalf ? (
+                          <FontAwesomeIcon icon={faStarHalfStroke} />
+                        ) : (
+                          <FontAwesomeIcon icon={faStar} />
+                        )}
+                      </span>
+                      <button
+                        type='button'
+                        onClick={() => setFeedbackRating(halfValue)}
+                        className='absolute left-0 top-0 w-1/2 h-full cursor-pointer'
+                        aria-label={`${halfValue} points`}
+                      />
+                      <button
+                        type='button'
+                        onClick={() => setFeedbackRating(fullValue)}
+                        className='absolute left-1/2 top-0 w-1/2 h-full cursor-pointer'
+                        aria-label={`${fullValue} points`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <p className='text-base text-zinc-500 font-mono' aria-live='polite'>
               {feedbackRating > 0
-                ? `${feedbackRating / 20} star(s) (rating: ${feedbackRating})`
-                : 'Tap stars to rate (each star = 20)'}
+                ? `${feedbackRating} / 100 points`
+                : 'Tap to rate'}
             </p>
+
             {feedbackError && (
-              <p className='text-red-400 text-base'>{feedbackError}</p>
+              <p role='alert' className='text-error text-base'>
+                {feedbackError}
+              </p>
             )}
+
             <div className='flex gap-3'>
               <button
                 type='button'
                 onClick={handleCloseFeedbackModal}
-                className='flex-1 px-3 py-2 rounded-md text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 transition-colors duration-100 text-base font-medium cursor-pointer'
+                className='flex-1 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 transition-colors duration-150 text-base font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
               >
                 Skip
               </button>
@@ -948,14 +1487,14 @@ export const CreateJob = () => {
                 type='button'
                 disabled={feedbackRating <= 0 || isSubmittingFeedback}
                 onClick={handleSubmitFeedback}
-                className='flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 rounded-md font-medium text-base transition-colors duration-100 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer'
+                className='flex-1 px-4 py-2.5 bg-teal hover:bg-teal/80 text-zinc-950 rounded-lg font-medium text-base transition-colors duration-150 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
               >
                 {isSubmittingFeedback ? (
                   <>
-                    <FontAwesomeIcon icon={faSpinner} spin /> Submitting\u2026
+                    <FontAwesomeIcon icon={faSpinner} spin /> Submitting&hellip;
                   </>
                 ) : (
-                  <>Submit</>
+                  'Submit'
                 )}
               </button>
             </div>

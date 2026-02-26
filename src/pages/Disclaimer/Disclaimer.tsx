@@ -1,6 +1,6 @@
 // prettier-ignore
 const styles = {
-    disclaimerContainer: 'disclaimer-container prose-sm mx-auto my-auto  max-w-prose',
+    disclaimerContainer: 'disclaimer-container prose-sm mx-auto my-auto max-w-prose',
     disclaimerTitle: 'disclaimer-title mb-4 font-medium text-2xl text-primary',
     disclaimerContent: 'disclaimer-content flex flex-col gap-4 text-secondary'
 } satisfies Record<string, string>;

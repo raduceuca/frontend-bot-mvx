@@ -3,7 +3,7 @@ import { WithClassnameType } from 'types';
 
 // prettier-ignore
 const styles = {
-  container: 'bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col gap-4 flex-1 p-4 lg:p-6 justify-center transition-colors duration-100',
+  container: 'bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col gap-4 flex-1 p-4 lg:p-6 justify-center transition-colors duration-150',
   title: 'flex justify-between items-center text-lg font-semibold text-zinc-50 tracking-tight',
   description: 'text-zinc-400 mb-4 text-base'
 } satisfies Record<string, string>;

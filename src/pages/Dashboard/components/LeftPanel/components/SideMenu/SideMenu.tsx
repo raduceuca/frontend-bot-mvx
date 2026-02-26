@@ -1,6 +1,6 @@
-import { faGift, faRobot } from '@fortawesome/free-solid-svg-icons';
 import classNames from 'classnames';
 import { useState } from 'react';
+import maxAvatar from 'assets/img/max-avatar.png';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
 import { ItemIcon } from './components';
 import styles from './sideMenu.styles';
@@ -9,13 +9,8 @@ import { MenuItemsType, SideMenuPropsType } from './sideMenu.types';
 const menuItems: MenuItemsType[] = [
   {
     title: 'New Job',
-    icon: faRobot,
+    iconSrc: maxAvatar,
     id: ItemsIdentifiersEnum.createJob
-  },
-  {
-    title: 'Mystery Box',
-    icon: faGift,
-    id: ItemsIdentifiersEnum.mysteryBox
   }
 ];
 
@@ -44,7 +39,11 @@ export const SideMenu = ({ setIsOpen }: SideMenuPropsType) => {
               [styles.sideMenuItemActive]: item.id === activeItem
             })}
           >
-            {item.icon && <ItemIcon icon={item.icon} />}
+            {item.iconSrc ? (
+              <img src={item.iconSrc} alt='' className='w-4 h-4 rounded-sm' />
+            ) : item.icon ? (
+              <ItemIcon icon={item.icon} />
+            ) : null}
 
             <div className={styles.sideMenuItemTitle}>{item.title}</div>
           </div>

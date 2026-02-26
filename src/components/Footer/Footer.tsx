@@ -8,9 +8,9 @@ import { version } from '../../../package.json';
 // prettier-ignore
 const styles = {
   footer: 'footer mx-auto w-full max-w-prose py-4 text-center',
-  footerContainer: 'footer-container flex flex-col gap-1 font-medium items-center justify-center text-sm text-[#989898]',
-  footerDisclaimerLink: 'footer-disclaimer-link cursor-pointer hover:underline',
-  footerDescription: 'footer-description flex items-center justify-center gap-1 text-sm text-neutral-500 gap-1',
+  footerContainer: 'footer-container flex flex-col gap-1 font-medium items-center justify-center text-sm text-zinc-500',
+  footerDisclaimerLink: 'footer-disclaimer-link cursor-pointer hover:underline hover:text-zinc-300 transition-colors duration-150 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 px-2 py-1.5 -mx-2',
+  footerDescription: 'footer-description flex items-center justify-center gap-1 text-sm text-zinc-500',
   footerDescriptionNetwork: 'footer-description-network capitalize'
 } satisfies Record<string, string>;
 
@@ -19,7 +19,7 @@ export const Footer = () => {
   const navigate = useNavigate();
   const currentYear = DateTime.now().year;
 
-  const handleDisclaimerClick = (event: MouseEvent<HTMLDivElement>) => {
+  const handleDisclaimerClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     navigate(RouteNamesEnum.disclaimer);
   };
@@ -28,12 +28,13 @@ export const Footer = () => {
     <footer className={styles.footer}>
       <div className={styles.footerContainer}>
         <div className={styles.footerDescription}>
-          <div
+          <button
+            type='button'
             onClick={handleDisclaimerClick}
             className={styles.footerDisclaimerLink}
           >
             Disclaimer
-          </div>
+          </button>
         </div>
 
         <div className={styles.footerDescription}>

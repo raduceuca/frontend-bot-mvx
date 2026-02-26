@@ -11,9 +11,9 @@ import {
 } from 'lib';
 
 const SEND_TO_BOT_TRANSACTION_INFO = {
-  processingMessage: 'Sending tokens to bot',
-  errorMessage: 'Failed to send tokens to bot',
-  successMessage: 'Tokens sent to bot successfully'
+  processingMessage: 'Sending tokens to Max',
+  errorMessage: 'Couldn\u2019t send tokens to Max',
+  successMessage: 'Tokens sent to Max'
 };
 
 export interface SendToBotParams {
@@ -91,6 +91,31 @@ export const useSendTokensToBot = () => {
     const sentTx = Array.isArray(transactions) ? transactions[0] : transactions;
     const txHash =
       (sentTx as any).hash || (sentTx as any).getHash?.()?.toString?.();
+
+    // Wait for on-chain confirmation
+    const MAX_POLL_ATTEMPTS = 20; // 20 × 3s = 60 seconds
+    let txOnChain: any = null;
+    let attempts = 0;
+
+    while (!txOnChain || !txOnChain.status.isCompleted()) {
+      if (++attempts > MAX_POLL_ATTEMPTS) {
+        throw new Error(
+          'Token transfer timed out. Check your wallet for confirmation.'
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      try {
+        txOnChain = await networkProvider.getTransaction(txHash);
+      } catch {
+        // Transaction not yet propagated, retrying
+      }
+    }
+
+    if (!txOnChain.status.isSuccessful()) {
+      throw new Error(
+        `Token transfer failed on-chain: ${txOnChain.status.toString()}`
+      );
+    }
 
     return { sessionId, txHash };
   };

@@ -12,7 +12,7 @@ const styles = {
   encodedMessageContainer: 'encoded-message-container flex flex-row w-full gap-2',
   encodedMessageText: 'encoded-message-text flex-1 break-all',
   decodedMessageContainer: 'decoded-message-container flex flex-row w-full gap-2',
-  decodedMessageText: 'decoded-message-text flex-1 break-all resize-none outline-none text-green-700 bg-transparent'
+  decodedMessageText: 'decoded-message-text flex-1 break-all resize-none outline-none text-success bg-transparent'
 } satisfies Record<string, string>;
 
 interface VerifyMessagePropsType {

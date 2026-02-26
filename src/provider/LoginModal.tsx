@@ -17,11 +17,12 @@ const modalStyles = {
     zIndex: 1000
   },
   modal: {
-    backgroundColor: 'white',
+    backgroundColor: 'var(--bg-3)',
     padding: '20px',
-    borderRadius: '8px',
+    borderRadius: '12px',
     width: '400px',
-    maxWidth: '90%'
+    maxWidth: '90%',
+    border: '1px solid var(--border-1)'
   },
   form: {
     display: 'flex',
@@ -31,11 +32,11 @@ const modalStyles = {
   input: {
     padding: '8px',
     marginTop: '5px',
-    backgroundColor: '#FFF',
+    backgroundColor: 'var(--bg-2)',
     width: '100%',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
-    color: 'black'
+    borderRadius: '8px',
+    border: '1px solid var(--border-1)',
+    color: 'var(--text-0)'
   },
   buttonGroup: {
     display: 'flex',

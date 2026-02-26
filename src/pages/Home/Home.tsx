@@ -4,7 +4,7 @@ import { HomeHero } from './components/HomeHero';
 
 const styles = {
   container:
-    'flex flex-col items-center w-full max-w-3xl mx-auto px-4 pb-16 gap-12 lg:gap-16'
+    'flex flex-col items-center gap-8 w-full max-w-4xl mx-auto px-4 sm:px-6 pb-16'
 } satisfies Record<string, string>;
 
 export const Home = () => (

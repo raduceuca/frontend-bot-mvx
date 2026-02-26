@@ -47,7 +47,6 @@ export const Faucet = () => {
         isError: false
       });
     } catch (err: any) {
-      console.error('Faucet request error', err);
       const errorMsg =
         err.response?.data?.message ||
         'Failed to request tokens. You can request once every 24 hours.';
@@ -57,17 +56,23 @@ export const Faucet = () => {
     }
   };
 
+  const handleRetry = () => {
+    setMessage(null);
+    setCaptcha(null);
+    setRequestDisabled(true);
+  };
+
   return (
     <div className='flex flex-col items-start gap-4'>
       <p className='text-base text-zinc-400'>
-        You can request 5 xEGLD from the Devnet Faucet every 24 hours. Wait for
-        the transaction to be processed after requesting.
+        Request 5 xEGLD from the Devnet Faucet. Available once every 24 hours.
       </p>
 
       {message && (
         <div
+          role='alert'
           className={`text-base ${
-            message.isError ? 'text-red-400' : 'text-emerald-400'
+            message.isError ? 'text-error' : 'text-teal'
           }`}
         >
           {message.text}
@@ -86,6 +91,10 @@ export const Faucet = () => {
 
       {isLoading ? (
         <Loader />
+      ) : message?.isError ? (
+        <Button onClick={handleRetry} className='mt-2 w-full xs:w-auto'>
+          Try Again
+        </Button>
       ) : (
         <Button
           disabled={

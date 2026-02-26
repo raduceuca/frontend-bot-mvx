@@ -7,6 +7,5 @@ export enum ItemsIdentifiersEnum {
   batchTransactions = 'batch-transactions',
   transactionsAll = 'transactions-all',
   transactionsPingPong = 'transactions-ping-pong',
-  createJob = 'create-job',
-  mysteryBox = 'mystery-box'
+  createJob = 'create-job'
 }

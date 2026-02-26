@@ -12,9 +12,9 @@ import {
 } from 'lib';
 
 const CREATE_JOB_TRANSACTION_INFO = {
-  processingMessage: 'Processing Job Initialization',
-  errorMessage: 'An error has occured during job initialization',
-  successMessage: 'Job initialized successfuly'
+  processingMessage: 'Max is initializing\u2026',
+  errorMessage: 'Couldn\u2019t start the job',
+  successMessage: 'Job started'
 };
 
 export interface PrepareResponse {
@@ -134,13 +134,21 @@ export const useCreateJob = () => {
       const txHash =
         (sentTx as any).hash || (sentTx as any).getHash().toString();
 
+      const MAX_POLL_ATTEMPTS = 60; // 60 × 3s = 3 minutes
       let txOnChain: any = null;
+      let attempts = 0;
+
       while (!txOnChain || !txOnChain.status.isCompleted()) {
+        if (++attempts > MAX_POLL_ATTEMPTS) {
+          throw new Error(
+            'Transaction polling timed out. Check your wallet for confirmation.'
+          );
+        }
         await new Promise((resolve) => setTimeout(resolve, 3000));
         try {
           txOnChain = await networkProvider.getTransaction(txHash);
-        } catch (e) {
-          console.log('Waiting for transaction to propagate...');
+        } catch {
+          // Transaction not yet propagated, retrying
         }
       }
 
@@ -151,9 +159,8 @@ export const useCreateJob = () => {
         );
       }
 
-      return { sessionId, jobId: prepareData.jobId };
+      return { sessionId, jobId: prepareData.jobId, txHash };
     } catch (err) {
-      console.error('Create job failed', err);
       throw err;
     }
   };

@@ -4,7 +4,7 @@ import { OutputContainer } from '../OutputContainer';
 const styles = {
   missingNativeAuthError: 'missing-native-auth-error flex items-center gap-1',
   missingNativeAuthErrorText: 'missing-native-auth-error-text',
-  missingNativeAuthErrorDanger: 'missing-native-auth-error-danger text-red-500 font-bold',
+  missingNativeAuthErrorDanger: 'missing-native-auth-error-danger text-error font-bold',
   missingNativeAuthErrorItalic: 'missing-native-auth-error-italic font-bold italic leading-none text-primary transition-all duration-200 ease-out'
 } satisfies Record<string, string>;
 

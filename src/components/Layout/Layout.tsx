@@ -1,22 +1,23 @@
 import { PropsWithChildren } from 'react';
 import { AuthRedirectWrapper } from 'wrappers';
+import { BuildYourAgent } from '../BuildYourAgent';
 import { Footer } from '../Footer';
-import { Header } from '../Header';
 
 // prettier-ignore
 const styles = {
-  layoutContainer: 'layout-container flex min-h-screen flex-col bg-accent transition-all duration-200 ease-out',
-  mainContainer: 'main-container flex flex-grow items-stretch justify-center'
+  layoutContainer: 'layout-container flex min-h-dvh flex-col bg-accent transition-all duration-200 ease-out',
+  mainContainer: 'main-container flex-grow flex justify-center'
 } satisfies Record<string, string>;
 
-export const Layout = ({ children }: PropsWithChildren) => (
-  <div className={styles.layoutContainer}>
-    <Header />
+export const Layout = ({ children }: PropsWithChildren) => {
+  return (
+    <div className={styles.layoutContainer}>
+      <main className={styles.mainContainer}>
+        <AuthRedirectWrapper>{children}</AuthRedirectWrapper>
+      </main>
 
-    <main className={styles.mainContainer}>
-      <AuthRedirectWrapper>{children}</AuthRedirectWrapper>
-    </main>
-
-    <Footer />
-  </div>
-);
+      <BuildYourAgent />
+      <Footer />
+    </div>
+  );
+};

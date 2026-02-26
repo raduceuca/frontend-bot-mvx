@@ -1,5 +1,3 @@
-@import 'tailwindcss';
-
 @font-face {
   font-family: 'Satoshi';
   src: url('/src/assets/fonts/Satoshi-Regular.woff2') format('woff2');
@@ -28,27 +26,27 @@
 }
 
 :root {
-  /* Backgrounds */
-  --bg-0: #09090B;
-  --bg-1: #111114;
-  --bg-2: #18181B;
-  --bg-3: #27272A;
+  /* Backgrounds — subtle teal-tinted greys */
+  --bg-0: #0a0f0e;
+  --bg-1: #0e1514;
+  --bg-2: #121a18;
+  --bg-3: #1d2b28;
 
-  /* Borders */
-  --border-0: #27272A;
-  --border-1: #3F3F46;
-  --border-2: #52525B;
+  /* Borders — subtle teal-tinted greys */
+  --border-0: #1d2b28;
+  --border-1: #303d3a;
+  --border-2: #48524f;
 
-  /* Text */
-  --text-0: #FAFAFA;
-  --text-1: #A1A1AA;
-  --text-2: #71717A;
-  --text-3: #52525B;
+  /* Text — subtle teal-tinted greys */
+  --text-0: #f4f7f6;
+  --text-1: #8e9896;
+  --text-2: #62706d;
+  --text-3: #48524f;
 
   /* Accent */
-  --accent: #34D399;
-  --accent-dim: #065F46;
-  --accent-text: #022C22;
+  --accent: #23F7DD;
+  --accent-dim: #0D6B5E;
+  --accent-text: #042F2E;
 
   /* Semantic */
   --error: #EF4444;
@@ -57,7 +55,33 @@
 }
 
 body {
-  background-color: #09090B;
+  background-color: var(--bg-0);
+}
+
+/*
+  Override MultiversX SDK dark theme variables.
+  The SDK injects neutral blue-grey values via [data-mvx-theme].
+  We override with teal-tinted greys to match our palette.
+*/
+[data-mvx-theme='mvx:dark-theme'] {
+  --mvx-bg-color-primary: #0a0f0e;
+  --mvx-bg-color-secondary: #121a18;
+  --mvx-hover-bg-primary: #1d2b28;
+  --mvx-bg-accent-color: #121a18;
+  --mvx-button-bg-primary: #23F7DD;
+  --mvx-button-bg-secondary: #1d2b28;
+  --mvx-button-bg-variant: #303d3a;
+  --mvx-hover-color-primary: #303d3a;
+  --mvx-text-color-primary: #f4f7f6;
+  --mvx-text-color-secondary: #8e9896;
+  --mvx-text-color-tertiary: #62706d;
+  --mvx-text-accent-color: #23F7DD;
+  --mvx-button-text-primary: #0a0f0e;
+  --mvx-button-text-secondary: #f4f7f6;
+  --mvx-link-color: #23F7DD;
+  --mvx-border-color-secondary: #303d3a;
+  --mvx-success-color: #34D399;
+  --mvx-error-color: #EF4444;
 }
 
 /* Respect reduced motion preferences */
@@ -72,5 +96,5 @@ body {
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-1); border-radius: 10px; opacity: 0.5; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
