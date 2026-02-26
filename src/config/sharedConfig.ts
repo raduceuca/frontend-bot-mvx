@@ -39,7 +39,7 @@ export const BOT_ADDRESS =
     : typeof import.meta !== 'undefined' &&
       (import.meta as any).env?.VITE_BOT_ADDRESS
     ? (import.meta as any).env.VITE_BOT_ADDRESS
-    : 'erd1px7l2nck0nk3j0c0dsftagvwhpdmmymac7rt0092j3vy9lef7q3qtzfs5z';
+    : 'erd1ync4ke2etddxxgau6dsvl9wwjnl8m257wqs63acenfrxr2an7t6s2u7309';
 
 /** Reputation registry SC for giveFeedbackSimple. Override via NEXT_PUBLIC_REPUTATION_REGISTRY_ADDRESS or VITE_REPUTATION_REGISTRY_ADDRESS. */
 export const REPUTATION_REGISTRY_ADDRESS =
