@@ -280,7 +280,7 @@ export const ChatMessages = ({
                   transition={{ duration: 0.15 }}
                   className='flex justify-end max-w-[92%] xs:max-w-[88%] sm:max-w-[80%] ml-auto'
                 >
-                  <div className='bg-zinc-800 text-zinc-50 rounded-2xl rounded-tr-md px-3 xs:px-5 py-2.5 xs:py-3 text-base prose prose-invert prose-sm prose-p:my-1 prose-headings:my-2 prose-code:text-teal max-w-none break-words'>
+                  <div className='bg-zinc-800 text-zinc-50 rounded-2xl rounded-tr-md px-3 xs:px-5 py-2.5 xs:py-3 text-base prose prose-invert prose-sm prose-p:my-1 prose-headings:my-2 prose-code:text-teal max-w-none min-w-0 overflow-hidden break-words'>
                     <Markdown>{msg.content}</Markdown>
                   </div>
                 </motion.div>
@@ -301,7 +301,7 @@ export const ChatMessages = ({
                     alt=''
                     className='w-8 h-8 shrink-0 mt-1 rounded-lg'
                   />
-                  <div className='bg-zinc-800 border border-zinc-700/50 text-zinc-50 rounded-2xl rounded-tl-md px-3 xs:px-5 py-3 xs:py-4 text-base prose prose-invert prose-sm prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-2 prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-code:text-teal prose-a:text-teal prose-a:no-underline hover:prose-a:underline prose-table:my-2 prose-th:border prose-th:border-zinc-600 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-zinc-600 prose-td:px-3 prose-td:py-2 max-w-none break-words'>
+                  <div className='bg-zinc-800 border border-zinc-700/50 text-zinc-50 rounded-2xl rounded-tl-md px-3 xs:px-5 py-3 xs:py-4 text-base prose prose-invert prose-sm prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-pre:my-2 prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-code:text-teal prose-a:text-teal prose-a:no-underline hover:prose-a:underline prose-table:my-2 prose-table:block prose-table:overflow-x-auto prose-th:border prose-th:border-zinc-600 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-zinc-600 prose-td:px-3 prose-td:py-2 max-w-none min-w-0 overflow-hidden break-words'>
                     <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>
                       {normalizeAgentMarkdown(msg.content)}
                     </Markdown>
