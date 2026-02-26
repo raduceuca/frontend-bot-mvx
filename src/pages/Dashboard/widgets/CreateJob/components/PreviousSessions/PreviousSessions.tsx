@@ -4,8 +4,7 @@ import {
   faClock,
   faRotateRight,
   faSpinner,
-  faStar,
-  faStarHalfStroke
+  faStar
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { DateTime } from 'luxon';
@@ -13,6 +12,7 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 import { PreviousSession } from 'hooks/useGetPreviousSessions';
 import { truncateJobId } from '../../createJob.utils';
+import { StarRating } from '../StarRating';
 
 const DISPLAY_LIMIT = 5;
 
@@ -116,9 +116,7 @@ export const PreviousSessions = ({
           <FontAwesomeIcon icon={faClock} className='text-sm text-zinc-600' />
           <span className='text-sm font-medium text-zinc-500'>
             Previous sessions
-            {total > 0 && (
-              <span className='text-zinc-600 ml-1'>({total})</span>
-            )}
+            {total > 0 && <span className='text-zinc-600 ml-1'>({total})</span>}
           </span>
         </div>
         {sessions.length > DISPLAY_LIMIT && (
@@ -135,86 +133,85 @@ export const PreviousSessions = ({
       <div className='flex flex-col gap-1'>
         {(showAll ? sessions : sessions.slice(0, DISPLAY_LIMIT)).map(
           (session, index) => {
-          const isFinishing = finishingJobId === session.jobId;
+            const isFinishing = finishingJobId === session.jobId;
 
-          return (
-            <motion.div
-              key={session.jobId}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.15, delay: index * 0.03 }}
-              className='group flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-900/40 transition-all duration-150'
-            >
-              <div className='flex items-center gap-3 min-w-0'>
-                <span className='text-sm text-zinc-400 whitespace-nowrap'>
-                  {formatDate(session.createdAt)}
-                </span>
-                <span
-                  className={`text-sm px-1.5 py-0.5 rounded-md font-mono ${
-                    statusStyles[session.status] ?? statusStyles.New
-                  }`}
-                >
-                  {session.status}
-                </span>
-              </div>
+            return (
+              <motion.div
+                key={session.jobId}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.15, delay: index * 0.03 }}
+                className='group flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-900/40 transition-all duration-150'
+              >
+                <div className='flex items-center gap-3 min-w-0'>
+                  <span className='text-sm text-zinc-400 whitespace-nowrap'>
+                    {formatDate(session.createdAt)}
+                  </span>
+                  <span
+                    className={`text-sm px-1.5 py-0.5 rounded-md font-mono ${
+                      statusStyles[session.status] ?? statusStyles.New
+                    }`}
+                  >
+                    {session.status}
+                  </span>
+                </div>
 
-              <div className='flex items-center gap-2.5 shrink-0'>
-                {/* Already rated */}
-                {session.ratingAvg != null &&
-                  session.ratingsCount != null &&
-                  session.ratingsCount > 0 && (
-                    <span className='flex items-center gap-1 text-sm text-warning'>
-                      <FontAwesomeIcon icon={faStar} className='text-sm' />
-                      {session.ratingAvg.toFixed(0)}
+                <div className='flex items-center gap-2.5 shrink-0'>
+                  {/* Already rated */}
+                  {session.ratingAvg != null &&
+                    session.ratingsCount != null &&
+                    session.ratingsCount > 0 && (
+                      <span className='flex items-center gap-1 text-sm text-warning'>
+                        <FontAwesomeIcon icon={faStar} className='text-sm' />
+                        {session.ratingAvg.toFixed(0)}
+                      </span>
+                    )}
+
+                  {/* Finish & Rate button (New/Pending unrated) */}
+                  {needsFinish(session) &&
+                    expandedJobId !== session.jobId &&
+                    !isFinishing && (
+                      <div
+                        className='flex items-center gap-1.5'
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
+                        <button
+                          type='button'
+                          onClick={() => onFinishSession?.(session.jobId)}
+                          className='text-sm text-zinc-500 hover:text-zinc-300 transition-colors duration-150 cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-zinc-800'
+                        >
+                          <FontAwesomeIcon
+                            icon={faCheckCircle}
+                            className='mr-1'
+                          />
+                          Finish
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => {
+                            setExpandedJobId(session.jobId);
+                            setHoverRating(0);
+                          }}
+                          className='text-sm text-zinc-500 hover:text-warning transition-colors duration-150 cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-zinc-800'
+                        >
+                          Finish & Rate
+                        </button>
+                      </div>
+                    )}
+
+                  {/* Finishing spinner */}
+                  {isFinishing && (
+                    <span className='flex items-center gap-1.5 text-sm text-zinc-500'>
+                      <FontAwesomeIcon icon={faSpinner} spin />
+                      Finishing&hellip;
                     </span>
                   )}
 
-                {/* Finish & Rate button (New/Pending unrated) */}
-                {needsFinish(session) &&
-                  expandedJobId !== session.jobId &&
-                  !isFinishing && (
-                    <div
-                      className='flex items-center gap-1.5'
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                    >
-                      <button
-                        type='button'
-                        onClick={() => onFinishSession?.(session.jobId)}
-                        className='text-sm text-zinc-500 hover:text-zinc-300 transition-colors duration-150 cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-zinc-800'
-                      >
-                        <FontAwesomeIcon
-                          icon={faCheckCircle}
-                          className='mr-1'
-                        />
-                        Finish
-                      </button>
-                      <button
-                        type='button'
-                        onClick={() => {
-                          setExpandedJobId(session.jobId);
-                          setHoverRating(0);
-                        }}
-                        className='text-sm text-zinc-500 hover:text-warning transition-colors duration-150 cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-zinc-800'
-                      >
-                        Finish & Rate
-                      </button>
-                    </div>
-                  )}
-
-                {/* Finishing spinner */}
-                {isFinishing && (
-                  <span className='flex items-center gap-1.5 text-sm text-zinc-500'>
-                    <FontAwesomeIcon icon={faSpinner} spin />
-                    Finishing&hellip;
-                  </span>
-                )}
-
-                {/* Rate button (Completed/Failed unrated) */}
-                {canRate(session) &&
-                  expandedJobId !== session.jobId && (
+                  {/* Rate button (Completed/Failed unrated) */}
+                  {canRate(session) && expandedJobId !== session.jobId && (
                     <button
                       type='button'
                       onClick={(e) => {
@@ -229,105 +226,62 @@ export const PreviousSessions = ({
                     </button>
                   )}
 
-                {/* Inline star picker (expanded for both finish&rate and rate) */}
-                {(canRate(session) || needsFinish(session)) &&
-                  expandedJobId === session.jobId &&
-                  !isFinishing && (
-                    <div
-                      className='flex items-center gap-0.5'
-                      onMouseLeave={() => setHoverRating(0)}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                    >
-                      {[0, 1, 2, 3, 4].map((starIndex) => {
-                        const halfValue = starIndex * 20 + 10;
-                        const fullValue = (starIndex + 1) * 20;
-                        const activeRating = hoverRating;
-                        const showFull = activeRating >= fullValue;
-                        const showHalf =
-                          activeRating >= halfValue && !showFull;
-                        const filled = showFull || showHalf;
-                        return (
-                          <div key={starIndex} className='relative flex w-6'>
-                            <span
-                              className={`pointer-events-none text-base transition-colors ${
-                                filled ? 'text-warning' : 'text-zinc-700'
-                              }`}
-                            >
-                              {showFull ? (
-                                <FontAwesomeIcon icon={faStar} />
-                              ) : showHalf ? (
-                                <FontAwesomeIcon icon={faStarHalfStroke} />
-                              ) : (
-                                <FontAwesomeIcon icon={faStar} />
-                              )}
-                            </span>
-                            <button
-                              type='button'
-                              onMouseEnter={() => setHoverRating(halfValue)}
-                              onClick={() => {
-                                onRateSession?.(
-                                  session.jobId,
-                                  session.agentNonce,
-                                  halfValue
-                                );
-                                setExpandedJobId(null);
-                                setHoverRating(0);
-                              }}
-                              className='absolute left-0 top-0 w-1/2 h-full cursor-pointer'
-                              aria-label={`${halfValue} points`}
-                            />
-                            <button
-                              type='button'
-                              onMouseEnter={() => setHoverRating(fullValue)}
-                              onClick={() => {
-                                onRateSession?.(
-                                  session.jobId,
-                                  session.agentNonce,
-                                  fullValue
-                                );
-                                setExpandedJobId(null);
-                                setHoverRating(0);
-                              }}
-                              className='absolute left-1/2 top-0 w-1/2 h-full cursor-pointer'
-                              aria-label={`${fullValue} points`}
-                            />
-                          </div>
-                        );
-                      })}
-                      <button
-                        type='button'
+                  {/* Inline star picker (expanded for both finish&rate and rate) */}
+                  {(canRate(session) || needsFinish(session)) &&
+                    expandedJobId === session.jobId &&
+                    !isFinishing && (
+                      <div
+                        className='flex items-center gap-0.5'
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setExpandedJobId(null);
-                          setHoverRating(0);
                         }}
-                        className='text-sm text-zinc-600 hover:text-zinc-400 ml-1 cursor-pointer'
-                        aria-label='Cancel rating'
                       >
-                        &times;
-                      </button>
-                    </div>
-                  )}
+                        <StarRating
+                          rating={hoverRating}
+                          onChange={(value) => {
+                            onRateSession?.(
+                              session.jobId,
+                              session.agentNonce,
+                              value
+                            );
+                            setExpandedJobId(null);
+                            setHoverRating(0);
+                          }}
+                          onHoverChange={setHoverRating}
+                          size='sm'
+                        />
+                        <button
+                          type='button'
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setExpandedJobId(null);
+                            setHoverRating(0);
+                          }}
+                          className='text-sm text-zinc-600 hover:text-zinc-400 ml-1 cursor-pointer'
+                          aria-label='Cancel rating'
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    )}
 
-                <span className='text-sm text-zinc-600 font-mono group-hover:text-zinc-400 transition-colors duration-150'>
-                  {truncateJobId(session.jobId)}
-                </span>
-                <a
-                  href={`${explorerAddress}/transactions/${session.initTxHash}`}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  className='text-sm text-zinc-700 group-hover:text-zinc-500 transition-colors duration-150 cursor-pointer'
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
-                </a>
-              </div>
-            </motion.div>
-          );
+                  <span className='text-sm text-zinc-600 font-mono group-hover:text-zinc-400 transition-colors duration-150'>
+                    {truncateJobId(session.jobId)}
+                  </span>
+                  <a
+                    href={`${explorerAddress}/transactions/${session.initTxHash}`}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='text-sm text-zinc-700 group-hover:text-zinc-500 transition-colors duration-150 cursor-pointer'
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
+                  </a>
+                </div>
+              </motion.div>
+            );
           }
         )}
       </div>

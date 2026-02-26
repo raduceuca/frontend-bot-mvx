@@ -2,6 +2,7 @@
 @plugin '@tailwindcss/typography';
 
 @theme {
+  --breakpoint-xxs: 22rem;
   --breakpoint-xs: 30rem;
 
   /* Teal-tinted greys — subtle teal warmth over neutral zinc */

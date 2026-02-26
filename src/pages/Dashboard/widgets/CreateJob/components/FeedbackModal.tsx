@@ -2,43 +2,40 @@ import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { motion } from 'motion/react';
 import { useEffect } from 'react';
-import { truncateJobId } from '../../createJob.utils';
-import { StarRating } from '../StarRating';
+import { StarRating } from './StarRating';
 
-interface RatingConfirmModalProps {
-  jobId: string;
-  rating: number;
+interface FeedbackModalProps {
+  feedbackRating: number;
   isSubmitting: boolean;
   error: string | null;
-  onConfirm: () => void;
-  onCancel: () => void;
+  onRatingChange: (value: number) => void;
+  onSubmit: () => void;
+  onClose: () => void;
 }
 
-export const RatingConfirmModal = ({
-  jobId,
-  rating,
+export const FeedbackModal = ({
+  feedbackRating,
   isSubmitting,
   error,
-  onConfirm,
-  onCancel
-}: RatingConfirmModalProps) => {
+  onRatingChange,
+  onSubmit,
+  onClose
+}: FeedbackModalProps) => {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSubmitting) onCancel();
+      if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isSubmitting, onCancel]);
+  }, [onClose]);
 
   return (
     <div
       className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 overflow-y-auto'
       role='dialog'
       aria-modal='true'
-      aria-labelledby='rate-session-title'
-      onClick={() => {
-        if (!isSubmitting) onCancel();
-      }}
+      aria-labelledby='feedback-title'
+      onClick={onClose}
     >
       <motion.div
         initial={{ opacity: 0 }}
@@ -48,23 +45,25 @@ export const RatingConfirmModal = ({
         onClick={(e) => e.stopPropagation()}
       >
         <h3
-          id='rate-session-title'
+          id='feedback-title'
           className='text-lg font-semibold text-zinc-50 tracking-tight'
         >
-          Rate this session?
+          How did Max do?
         </h3>
         <p className='text-base text-zinc-500 leading-relaxed'>
-          Job {truncateJobId(jobId)} &mdash; your rating goes on-chain and
-          helps improve the agent.
+          Your rating goes on-chain and helps improve the agent.
         </p>
 
-        {/* Star display (read-only) */}
-        <div className='flex items-center gap-2'>
-          <StarRating rating={rating} readOnly />
-          <span className='text-base text-zinc-500 font-mono'>
-            {rating} / 100
-          </span>
-        </div>
+        <fieldset aria-label='Rate Max'>
+          <legend className='sr-only'>Rate Max from 10 to 100 points</legend>
+          <StarRating rating={feedbackRating} onChange={onRatingChange} />
+        </fieldset>
+
+        <p className='text-base text-zinc-500 font-mono' aria-live='polite'>
+          {feedbackRating > 0
+            ? `${feedbackRating} / 100 points`
+            : 'Tap to rate'}
+        </p>
 
         {error && (
           <p role='alert' className='text-error text-base'>
@@ -75,16 +74,15 @@ export const RatingConfirmModal = ({
         <div className='flex gap-3'>
           <button
             type='button'
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className='flex-1 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 transition-colors duration-150 text-base font-medium cursor-pointer disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
+            onClick={onClose}
+            className='flex-1 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 transition-colors duration-150 text-base font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
           >
-            Cancel
+            Skip
           </button>
           <button
             type='button'
-            onClick={onConfirm}
-            disabled={isSubmitting}
+            disabled={feedbackRating <= 0 || isSubmitting}
+            onClick={onSubmit}
             className='flex-1 px-4 py-2.5 bg-teal hover:bg-teal/80 text-zinc-950 rounded-lg font-medium text-base transition-colors duration-150 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
           >
             {isSubmitting ? (

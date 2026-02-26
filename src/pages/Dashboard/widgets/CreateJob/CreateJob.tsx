@@ -11,8 +11,6 @@ import {
   faPaperPlane,
   faPowerOff,
   faSpinner,
-  faStar,
-  faStarHalfStroke,
   faTimesCircle,
   faWallet
 } from '@fortawesome/free-solid-svg-icons';
@@ -46,12 +44,15 @@ import { RouteNamesEnum } from 'localConstants';
 import { ItemsIdentifiersEnum } from 'pages/Dashboard/dashboard.types';
 import { Faucet } from 'pages/Dashboard/widgets/Faucet/Faucet';
 import {
+  FeedbackModal,
   PreviousSessions,
   RatingConfirmModal,
   TransactionActivityBar,
   TransactionToast
 } from './components';
 import { TrackedTransaction, TxStatus } from './createJob.types';
+import { isUserCancellation } from './createJob.utils';
+import { useSessionRating } from './hooks';
 
 const AGENT_PROFILE_URL = 'https://agents.multiversx.com/agent/110';
 
@@ -105,20 +106,6 @@ let msgCounter = 0;
 const uid = () => `msg-${++msgCounter}`;
 
 const LOW_BALANCE_THRESHOLD = BigInt('50000000000000000'); // 0.05 EGLD
-
-const CANCELLATION_SUBSTRINGS = [
-  'Transaction canceled',
-  'Signing canceled',
-  'Transaction signing cancelled by user',
-  'cancelled by user',
-  'denied by the user',
-  'extensionResponse'
-] as const;
-
-const isUserCancellation = (err: unknown): boolean => {
-  const message = err instanceof Error ? err.message : String(err ?? '');
-  return CANCELLATION_SUBSTRINGS.some((s) => message.includes(s));
-};
 
 const PERSISTED_JOB_KEY = 'mx_create_job_persisted';
 
@@ -236,19 +223,6 @@ export const CreateJob = () => {
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
-
-  // Session rating (from Previous Sessions list)
-  const [sessionRating, setSessionRating] = useState<{
-    jobId: string;
-    agentNonce: number;
-    rating: number;
-  } | null>(null);
-  const [isSubmittingSessionRating, setIsSubmittingSessionRating] =
-    useState(false);
-  const [sessionRatingError, setSessionRatingError] = useState<string | null>(
-    null
-  );
-  const [finishingJobId, setFinishingJobId] = useState<string | null>(null);
 
   // Transaction tracking
   const [trackedTransactions, setTrackedTransactions] = useState<
@@ -462,11 +436,26 @@ export const CreateJob = () => {
     return id;
   };
 
-  const dismissToast = useCallback(
-    (toastId: string) =>
-      setToasts((prev) => prev.filter((t) => t.id !== toastId)),
-    []
-  );
+  const dismissToast = (toastId: string) =>
+    setToasts((prev) => prev.filter((t) => t.id !== toastId));
+
+  // ── Session rating (Previous Sessions list) ────────────────────
+  const {
+    sessionRating,
+    isSubmittingSessionRating,
+    sessionRatingError,
+    finishingJobId,
+    handleFinishSession,
+    handleRateSession,
+    handleConfirmSessionRating,
+    handleCancelSessionRating
+  } = useSessionRating({
+    giveFeedback,
+    submitProof,
+    previousSessions,
+    trackTransaction,
+    refetchSessions
+  });
 
   // ── Shared polling logic ─────────────────────────────────────────
 
@@ -721,104 +710,20 @@ export const CreateJob = () => {
         });
       }
       handleCloseFeedbackModal();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (isUserCancellation(err)) {
         setFeedbackError('Signing cancelled. Your rating was not submitted.');
       } else {
-        setFeedbackError(
-          err?.message ||
-            err?.response?.data?.message ||
-            'Couldn\u2019t submit your rating. Try again?'
-        );
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Couldn\u2019t submit your rating. Try again?';
+        setFeedbackError(message);
       }
     } finally {
       setIsSubmittingFeedback(false);
     }
   };
-
-  // ── Session finish handler (Previous Sessions list) ──────────────
-  const handleFinishSession = async (sessionJobId: string) => {
-    setFinishingJobId(sessionJobId);
-    try {
-      await submitProof(sessionJobId);
-    } catch {
-      // Job may already be finished server-side — refetch will show real status
-    } finally {
-      setFinishingJobId(null);
-      refetchSessions();
-    }
-  };
-
-  // ── Session rating handlers (Previous Sessions list) ─────────────
-  const handleRateSession = (
-    sessionJobId: string,
-    sessionAgentNonce: number,
-    rating: number
-  ) => {
-    setSessionRating({
-      jobId: sessionJobId,
-      agentNonce: sessionAgentNonce,
-      rating
-    });
-    setSessionRatingError(null);
-  };
-
-  const handleConfirmSessionRating = async () => {
-    if (!sessionRating) return;
-    setIsSubmittingSessionRating(true);
-    setSessionRatingError(null);
-    try {
-      // Finish the job first if it's still New/Pending
-      const session = previousSessions.find(
-        (s) => s.jobId === sessionRating.jobId
-      );
-      if (
-        session &&
-        (session.status === 'New' || session.status === 'Pending')
-      ) {
-        try {
-          await submitProof(sessionRating.jobId);
-        } catch {
-          // Continue to rating even if finish fails — job may already be done
-        }
-      }
-
-      const { txHash } = await giveFeedback(
-        sessionRating.jobId,
-        sessionRating.agentNonce,
-        sessionRating.rating
-      );
-      if (txHash) {
-        trackTransaction({
-          txHash,
-          label: `Rating: ${sessionRating.rating}/100`,
-          amount: '0',
-          token: 'xEGLD',
-          status: 'confirmed'
-        });
-      }
-      setSessionRating(null);
-      refetchSessions();
-    } catch (err: unknown) {
-      if (isUserCancellation(err)) {
-        setSessionRatingError(
-          'Signing cancelled. Your rating was not submitted.'
-        );
-      } else {
-        const message =
-          err instanceof Error ? err.message : 'Couldn\u2019t submit your rating. Try again?';
-        setSessionRatingError(message);
-      }
-    } finally {
-      setIsSubmittingSessionRating(false);
-    }
-  };
-
-  const handleCancelSessionRating = useCallback(() => {
-    if (isSubmittingSessionRating) return;
-    setSessionRating(null);
-    setSessionRatingError(null);
-  }, [isSubmittingSessionRating]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -835,22 +740,15 @@ export const CreateJob = () => {
     el.style.height = `${el.scrollHeight}px`;
   }, [prompt]);
 
-  // Escape key handler for modals — only dismiss the topmost one
+  // Escape key handler for faucet panel
   useEffect(() => {
+    if (!showFaucetPanel) return;
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (showFaucetPanel) {
-        setShowFaucetPanel(false);
-      } else if (phase === 'rating' && pendingFeedback) {
-        resetAll();
-        setPendingFeedback(null);
-        setFeedbackRating(0);
-        setFeedbackError(null);
-      }
+      if (e.key === 'Escape') setShowFaucetPanel(false);
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [showFaucetPanel, phase, pendingFeedback]);
+  }, [showFaucetPanel]);
 
   // ── Wallet Bar ───────────────────────────────────────────────────
 
@@ -1101,11 +999,7 @@ export const CreateJob = () => {
                   aria-live='polite'
                   className={`${styles.badge} bg-warning/10 text-warning border border-warning/20 text-sm`}
                 >
-                  <FontAwesomeIcon
-                    icon={faSpinner}
-                    spin
-                    className='text-sm'
-                  />
+                  <FontAwesomeIcon icon={faSpinner} spin className='text-sm' />
                   {phase === 'creating' && 'Starting'}
                   {phase === 'prompting' && 'Thinking'}
                   {phase === 'sending_tokens' && 'Sending'}
@@ -1169,56 +1063,61 @@ export const CreateJob = () => {
               transition={{ duration: 0.3, ease: 'easeOut' }}
               className='flex-1 flex flex-col items-center justify-center gap-5 py-12'
             >
-              <img
-                src={maxAvatar}
-                alt='Max'
-                className='w-16 h-16 rounded-xl opacity-60'
-              />
-              <div className='text-center'>
-                <p className='text-base font-medium text-zinc-50'>
-                  Max is ready
-                </p>
-                <p className='text-base text-zinc-500 max-w-sm mx-auto mt-1'>
-                  Connect your wallet to get started. This runs on devnet
-                  — test tokens only, no real money.
-                </p>
-              </div>
-
-              {/* Connect Wallet + Agent Profile — matched height */}
-              <div className='flex items-stretch gap-2'>
-                <button
-                  onClick={handleConnect}
-                  className={`${styles.btn} bg-teal hover:bg-teal/80 text-zinc-950 flex items-center justify-center gap-2`}
-                >
-                  <FontAwesomeIcon icon={faWallet} /> Connect Wallet
-                </button>
-
-                <a
-                  href={AGENT_PROFILE_URL}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  className='group flex items-center gap-2.5 bg-zinc-800/60 border border-zinc-700/50 hover:border-teal/30 rounded-lg px-3 transition-all duration-150'
-                >
+              {/* Agent profile card with OG-style background */}
+              <a
+                href={AGENT_PROFILE_URL}
+                target='_blank'
+                rel='noopener noreferrer'
+                aria-label="View Max's agent profile on MultiversX (opens in new tab)"
+                className='group relative w-full max-w-xs overflow-hidden rounded-xl border border-zinc-700/40 hover:border-teal/30 transition-all duration-200 bg-zinc-900'
+              >
+                <img
+                  src='/preview-card.webp'
+                  alt=''
+                  loading='eager'
+                  className='absolute inset-0 w-full h-full object-cover'
+                  aria-hidden='true'
+                />
+                <div className='absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-zinc-950/30' />
+                <div className='relative flex items-end gap-3 px-4 pt-16 pb-4'>
                   <img
                     src={maxAvatar}
                     alt='Max'
-                    className='w-7 h-7 rounded-md shrink-0'
+                    className='w-11 h-11 rounded-lg shrink-0 ring-2 ring-zinc-800/80'
                   />
-                  <div className='flex flex-col items-start leading-tight'>
-                    <span className='text-sm font-medium text-zinc-50'>
+                  <div className='flex flex-col min-w-0'>
+                    <span className='text-sm font-semibold text-zinc-50 leading-none'>
                       Max
                     </span>
-                    <span className='text-sm text-zinc-500 font-mono'>
+                    <span className='text-xs text-zinc-400 leading-none mt-0.5'>
                       AI Agent on MultiversX
                     </span>
                   </div>
                   <FontAwesomeIcon
                     icon={faArrowUpRightFromSquare}
-                    className='w-2.5 h-2.5 text-zinc-600 group-hover:text-teal transition-colors duration-150'
+                    className='w-2.5 h-2.5 text-zinc-500 group-hover:text-teal transition-colors duration-150 ml-auto shrink-0 mb-0.5'
                     aria-hidden='true'
                   />
-                </a>
+                </div>
+              </a>
+
+              <div className='text-center'>
+                <p className='text-base font-medium text-zinc-50'>
+                  Max is ready
+                </p>
+                <p className='text-sm text-zinc-500 max-w-xs mx-auto mt-1'>
+                  Connect your wallet to get started. Devnet only, no real
+                  money.
+                </p>
               </div>
+
+              <button
+                type='button'
+                onClick={handleConnect}
+                className={`${styles.btn} bg-teal hover:bg-teal/80 text-zinc-950 flex items-center justify-center gap-2`}
+              >
+                <FontAwesomeIcon icon={faWallet} /> Connect Wallet
+              </button>
             </motion.div>
           ) : !jobId ? (
             /* State 2: Logged in, no active job — Start Job CTA */
@@ -1570,112 +1469,14 @@ export const CreateJob = () => {
 
       {/* Feedback modal */}
       {phase === 'rating' && pendingFeedback && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 overflow-y-auto'
-          role='dialog'
-          aria-modal='true'
-          aria-labelledby='feedback-title'
-          onClick={handleCloseFeedbackModal}
-        >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.15 }}
-            className='bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full p-6 flex flex-col gap-4'
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3
-              id='feedback-title'
-              className='text-lg font-semibold text-zinc-50 tracking-tight'
-            >
-              How did Max do?
-            </h3>
-            <p className='text-base text-zinc-500 leading-relaxed'>
-              Your rating goes on-chain and helps improve the agent.
-            </p>
-
-            {/* Star rating */}
-            <fieldset aria-label='Rate Max'>
-              <legend className='sr-only'>
-                Rate Max from 10 to 100 points
-              </legend>
-              <div className='flex items-center gap-0.5'>
-                {[0, 1, 2, 3, 4].map((starIndex) => {
-                  const halfValue = starIndex * 20 + 10;
-                  const fullValue = (starIndex + 1) * 20;
-                  const showFull = feedbackRating >= fullValue;
-                  const showHalf = feedbackRating >= halfValue && !showFull;
-                  const filled = showFull || showHalf;
-                  return (
-                    <div key={starIndex} className='relative flex w-10'>
-                      <span
-                        className={`pointer-events-none text-2xl transition-colors ${
-                          filled ? 'text-warning' : 'text-zinc-700'
-                        }`}
-                      >
-                        {showFull ? (
-                          <FontAwesomeIcon icon={faStar} />
-                        ) : showHalf ? (
-                          <FontAwesomeIcon icon={faStarHalfStroke} />
-                        ) : (
-                          <FontAwesomeIcon icon={faStar} />
-                        )}
-                      </span>
-                      <button
-                        type='button'
-                        onClick={() => setFeedbackRating(halfValue)}
-                        className='absolute left-0 top-0 w-1/2 h-full cursor-pointer'
-                        aria-label={`${halfValue} points`}
-                      />
-                      <button
-                        type='button'
-                        onClick={() => setFeedbackRating(fullValue)}
-                        className='absolute left-1/2 top-0 w-1/2 h-full cursor-pointer'
-                        aria-label={`${fullValue} points`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <p className='text-base text-zinc-500 font-mono' aria-live='polite'>
-              {feedbackRating > 0
-                ? `${feedbackRating} / 100 points`
-                : 'Tap to rate'}
-            </p>
-
-            {feedbackError && (
-              <p role='alert' className='text-error text-base'>
-                {feedbackError}
-              </p>
-            )}
-
-            <div className='flex gap-3'>
-              <button
-                type='button'
-                onClick={handleCloseFeedbackModal}
-                className='flex-1 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800 transition-colors duration-150 text-base font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
-              >
-                Skip
-              </button>
-              <button
-                type='button'
-                disabled={feedbackRating <= 0 || isSubmittingFeedback}
-                onClick={handleSubmitFeedback}
-                className='flex-1 px-4 py-2.5 bg-teal hover:bg-teal/80 text-zinc-950 rounded-lg font-medium text-base transition-colors duration-150 disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30'
-              >
-                {isSubmittingFeedback ? (
-                  <>
-                    <FontAwesomeIcon icon={faSpinner} spin /> Submitting&hellip;
-                  </>
-                ) : (
-                  'Submit'
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
+        <FeedbackModal
+          feedbackRating={feedbackRating}
+          isSubmitting={isSubmittingFeedback}
+          error={feedbackError}
+          onRatingChange={setFeedbackRating}
+          onSubmit={handleSubmitFeedback}
+          onClose={handleCloseFeedbackModal}
+        />
       )}
 
       {/* Session rating confirmation modal */}

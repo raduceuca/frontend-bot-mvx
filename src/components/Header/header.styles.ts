@@ -1,7 +1,7 @@
 // prettier-ignore
 export default {
   header: 'header flex items-center justify-between px-4 h-16 md:h-20 md:px-10',
-  headerLogo: 'header-logo transition-opacity duration-200',
+  headerLogo: 'header-logo transition-opacity duration-200 bg-transparent border-none p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/30 rounded-sm',
   headerNavigation: 'header-navigation flex items-center gap-2 lg:gap-4',
   headerNavigationButtons: 'header-navigation-buttons flex gap-2 lg:gap-4',
   headerNavigationButton: 'header-navigation-button flex justify-center items-center w-8 lg:w-10 h-8 lg:h-10 rounded-xl cursor-pointer relative after:rounded-xl after:absolute after:bg-btn-variant hover:after:bg-btn-hover  after:transition-all after:duration-200 after:ease-out after:left-0 after:right-0 after:top-0 after:bottom-0 after:pointer-events-none hover:after:opacity-100',

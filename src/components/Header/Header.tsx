@@ -64,16 +64,21 @@ export const Header = () => {
     }
   ];
 
-  const handleLogoClick = (event: MouseEvent<HTMLDivElement>) => {
+  const handleLogoClick = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
     navigate(isLoggedIn ? RouteNamesEnum.dashboard : RouteNamesEnum.home);
   };
 
   return (
     <header className={styles.header}>
-      <div onClick={handleLogoClick} className={styles.headerLogo}>
+      <button
+        type='button'
+        onClick={handleLogoClick}
+        className={styles.headerLogo}
+        aria-label='Go to home'
+      >
         <Logo hideTextOnMobile={true} />
-      </div>
+      </button>
 
       <nav className={styles.headerNavigation}>
         {/* <ThemeTooltip /> */}
@@ -147,15 +152,17 @@ export const Header = () => {
               Connect
             </MvxButton>
 
-            <div
+            <button
+              type='button'
               onClick={handleLogIn}
               className={styles.headerNavigationConnectMobile}
+              aria-label='Connect wallet'
             >
               <FontAwesomeIcon
-                icon={faPowerOff}
+                icon={faWallet}
                 className={styles.headerNavigationConnectIcon}
               />
-            </div>
+            </button>
           </div>
         )}
       </nav>

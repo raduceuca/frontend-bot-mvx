@@ -30,6 +30,7 @@ export const walletConnectV2ProjectId = '9b1a9564f91cb659ffe21b73d5c4e2d8';
 
 export const FACILITATOR_API_URL = 'https://x402-facilitator.elrond.ro';
 export const TASK_SERVICE_API_URL = 'https://mx-bot-api.elrond.ro';
+export const TASKCLAW_API_URL = 'https://devnet-taskclaw-api.multiversx.com';
 
 /** Bot address that receives tokens (OpenClaw multiversx skill wallet). Override via env NEXT_PUBLIC_BOT_ADDRESS or VITE_BOT_ADDRESS. */
 export const BOT_ADDRESS =
