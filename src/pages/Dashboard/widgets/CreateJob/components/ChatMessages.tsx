@@ -222,9 +222,7 @@ export const ChatMessages = ({
                 className='flex items-center gap-2 text-sm text-error max-w-sm text-center'
               >
                 <FontAwesomeIcon icon={faTimesCircle} className='shrink-0' />
-                <span>
-                  {messages.filter((m) => m.isError).pop()?.content}
-                </span>
+                <span>{messages.filter((m) => m.isError).pop()?.content}</span>
               </div>
             )}
 
@@ -262,7 +260,6 @@ export const ChatMessages = ({
               &darr;
             </button>
           )}
-
         </div>
       ) : (
         /* State 3: Active job -- messages or idle */
