@@ -290,83 +290,82 @@ export const CreateJob = () => {
           transition={{ duration: 0.15 }}
           className={`${styles.card} flex flex-col min-h-[320px] xs:min-h-[360px] sm:min-h-[480px]`}
         >
-        <ChatHeader
-          jobId={jobId}
-          isBusy={isBusy}
-          phase={phase}
-          isLoggedIn={isLoggedIn}
-          networkId={network.id}
-          onFinishJob={handleFinishJob}
-        />
+          <ChatHeader
+            jobId={jobId}
+            isBusy={isBusy}
+            phase={phase}
+            isLoggedIn={isLoggedIn}
+            networkId={network.id}
+            onFinishJob={handleFinishJob}
+          />
 
-        <ChatMessages
-          isLoggedIn={isLoggedIn}
-          jobId={jobId}
-          phase={phase}
-          isBusy={isBusy}
-          messages={chat.messages}
-          amount={amount}
-          isDevnet={isDevnet}
-          needsFunds={needsFunds}
-          disclaimerDismissed={disclaimerDismissed}
-          toasts={txTracking.toasts}
-          trackedTransactions={txTracking.trackedTransactions}
-          explorerAddress={network.explorerAddress}
-          previousSessionsTotal={previousSessionsTotal}
-          onConnect={handleConnect}
-          onCreateJob={handleCreateJob}
-          onShowFaucet={() => setShowFaucetPanel(true)}
-          onDismissToast={txTracking.dismissToast}
-          onDismissDisclaimer={() => {
-            localStorage.setItem('mx_disclaimer_dismissed', '1');
-            setDisclaimerDismissed(true);
-          }}
-          chatContainerRef={chatContainerRef}
-        />
+          <ChatMessages
+            isLoggedIn={isLoggedIn}
+            jobId={jobId}
+            phase={phase}
+            isBusy={isBusy}
+            messages={chat.messages}
+            amount={amount}
+            isDevnet={isDevnet}
+            needsFunds={needsFunds}
+            disclaimerDismissed={disclaimerDismissed}
+            toasts={txTracking.toasts}
+            trackedTransactions={txTracking.trackedTransactions}
+            explorerAddress={network.explorerAddress}
+            previousSessionsTotal={previousSessionsTotal}
+            onConnect={handleConnect}
+            onCreateJob={handleCreateJob}
+            onShowFaucet={() => setShowFaucetPanel(true)}
+            onDismissToast={txTracking.dismissToast}
+            onDismissDisclaimer={() => {
+              localStorage.setItem('mx_disclaimer_dismissed', '1');
+              setDisclaimerDismissed(true);
+            }}
+            chatContainerRef={chatContainerRef}
+          />
 
-        <QuickActions
-          isLoggedIn={isLoggedIn}
-          jobId={jobId}
-          isBusy={isBusy}
-          isDevnet={isDevnet}
-          hasSentTokens={hasSentTokens}
-          variant={isLoggedIn && jobId ? 'inline' : 'placeholder'}
-          onMysteryBox={jobActions.handleMysteryBox}
-          onSetPrompt={setPrompt}
-        />
-
-        {isLoggedIn && jobId && (
-          <ChatInputBar
+          <QuickActions
             isLoggedIn={isLoggedIn}
             jobId={jobId}
             isBusy={isBusy}
-            prompt={prompt}
-            phase={phase}
-            textareaRef={textareaRef}
-            onPromptChange={setPrompt}
-            onSendPrompt={handleSendPrompt}
-            onCreateJob={handleCreateJob}
-            onConnect={handleConnect}
-            onKeyDown={handleKeyDown}
-          />
-        )}
-
-        {isLoggedIn && (
-          <WalletBar
-            userAddress={userAddress}
-            addressCopied={addressCopied}
-            networkId={network.id}
             isDevnet={isDevnet}
-            needsFunds={needsFunds}
-            onCopyAddress={handleCopyAddress}
-            onOpenExplorer={handleOpenExplorer}
-            onShowFaucet={() => setShowFaucetPanel(true)}
-            onNotifications={handleNotifications}
-            onLogout={handleLogout}
+            hasSentTokens={hasSentTokens}
+            variant={isLoggedIn && jobId ? 'inline' : 'placeholder'}
+            onMysteryBox={jobActions.handleMysteryBox}
+            onSetPrompt={setPrompt}
           />
-        )}
-        </motion.div>
 
+          {isLoggedIn && jobId && (
+            <ChatInputBar
+              isLoggedIn={isLoggedIn}
+              jobId={jobId}
+              isBusy={isBusy}
+              prompt={prompt}
+              phase={phase}
+              textareaRef={textareaRef}
+              onPromptChange={setPrompt}
+              onSendPrompt={handleSendPrompt}
+              onCreateJob={handleCreateJob}
+              onConnect={handleConnect}
+              onKeyDown={handleKeyDown}
+            />
+          )}
+
+          {isLoggedIn && (
+            <WalletBar
+              userAddress={userAddress}
+              addressCopied={addressCopied}
+              networkId={network.id}
+              isDevnet={isDevnet}
+              needsFunds={needsFunds}
+              onCopyAddress={handleCopyAddress}
+              onOpenExplorer={handleOpenExplorer}
+              onShowFaucet={() => setShowFaucetPanel(true)}
+              onNotifications={handleNotifications}
+              onLogout={handleLogout}
+            />
+          )}
+        </motion.div>
       </div>
 
       {isLoggedIn && previousSessionsTotal > 0 && (
@@ -451,32 +450,32 @@ export const CreateJob = () => {
           className='fixed left-3 right-3 sm:left-auto sm:right-4 sm:w-[320px] z-[100] rounded-2xl bg-zinc-900 border border-zinc-700/50 overflow-hidden'
           style={{ bottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}
         >
-            <img
-              src='/disclaimer.webp'
-              alt='Max holding a disclaimer sign'
-              className='w-full aspect-video object-cover'
-            />
-            <div className='px-5 pt-4 pb-5 flex flex-col gap-4'>
-              <div>
-                <p className='text-lg font-medium text-zinc-100 leading-snug'>
-                  Max is an early demo
-                </p>
-                <p className='text-base text-zinc-400 leading-snug mt-1.5'>
-                  Not security-hardened, will make mistakes, and learn
-                  from them. Do not use him for any sensitive operations.
-                </p>
-              </div>
-              <button
-                type='button'
-                onClick={() => {
-                  localStorage.setItem('mx_disclaimer_dismissed', '1');
-                  setDisclaimerDismissed(true);
-                }}
-                className='w-full py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-750 text-base font-medium text-zinc-100 transition-colors duration-150 cursor-pointer'
-              >
-                Ok, I get it
-              </button>
+          <img
+            src='/disclaimer.webp'
+            alt='Max holding a disclaimer sign'
+            className='w-full aspect-video object-cover'
+          />
+          <div className='px-5 pt-4 pb-5 flex flex-col gap-4'>
+            <div>
+              <p className='text-lg font-medium text-zinc-100 leading-snug'>
+                Max is an early demo
+              </p>
+              <p className='text-base text-zinc-400 leading-snug mt-1.5'>
+                Not security-hardened, will make mistakes, and learn from them.
+                Do not use him for any sensitive operations.
+              </p>
             </div>
+            <button
+              type='button'
+              onClick={() => {
+                localStorage.setItem('mx_disclaimer_dismissed', '1');
+                setDisclaimerDismissed(true);
+              }}
+              className='w-full py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-750 text-base font-medium text-zinc-100 transition-colors duration-150 cursor-pointer'
+            >
+              Ok, I get it
+            </button>
+          </div>
         </motion.div>
       )}
     </div>

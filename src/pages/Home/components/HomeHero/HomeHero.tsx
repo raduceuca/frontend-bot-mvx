@@ -16,8 +16,7 @@ export const HomeHero = () => (
         backgroundImage: `url(${heroBg})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
-        maskImage:
-          'linear-gradient(to bottom, black 50%, transparent 100%)',
+        maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)',
         WebkitMaskImage:
           'linear-gradient(to bottom, black 50%, transparent 100%)'
       }}
